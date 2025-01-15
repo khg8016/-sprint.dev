@@ -1,15 +1,18 @@
 import { useStore } from '@nanostores/react';
 import { motion, type HTMLMotionProps, type Variants } from 'framer-motion';
 import { computed } from 'nanostores';
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import {
   type OnChangeCallback as OnEditorChange,
   type OnScrollCallback as OnEditorScroll,
 } from '~/components/editor/codemirror/CodeMirrorEditor';
-import { IconButton } from '~/components/ui/IconButton';
-import { PanelHeaderButton } from '~/components/ui/PanelHeaderButton';
-import { Slider, type SliderOptions } from '~/components/ui/Slider';
+
+/*
+ * import { IconButton } from '~/components/ui/IconButton';
+ * import { PanelHeaderButton } from '~/components/ui/PanelHeaderButton';
+ * import { Slider, type SliderOptions } from '~/components/ui/Slider';
+ */
 import { workbenchStore, type WorkbenchViewType } from '~/lib/stores/workbench';
 import { classNames } from '~/utils/classNames';
 import { cubicEasingFn } from '~/utils/easings';
@@ -17,7 +20,8 @@ import { renderLogger } from '~/utils/logger';
 import { EditorPanel } from './EditorPanel';
 import { Preview } from './Preview';
 import useViewport from '~/lib/hooks';
-import Cookies from 'js-cookie';
+
+// import Cookies from 'js-cookie';
 
 interface WorkspaceProps {
   chatStarted?: boolean;
@@ -26,16 +30,18 @@ interface WorkspaceProps {
 
 const viewTransition = { ease: cubicEasingFn };
 
-const sliderOptions: SliderOptions<WorkbenchViewType> = {
-  left: {
-    value: 'code',
-    text: 'Code',
-  },
-  right: {
-    value: 'preview',
-    text: 'Preview',
-  },
-};
+/*
+ * const sliderOptions: SliderOptions<WorkbenchViewType> = {
+ *   left: {
+ *     value: 'code',
+ *     text: 'Code',
+ *   },
+ *   right: {
+ *     value: 'preview',
+ *     text: 'Preview',
+ *   },
+ * };
+ */
 
 const workbenchVariants = {
   closed: {
@@ -57,7 +63,7 @@ const workbenchVariants = {
 export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => {
   renderLogger.trace('Workbench');
 
-  const [isSyncing, setIsSyncing] = useState(false);
+  // const [isSyncing, setIsSyncing] = useState(false);
 
   const hasPreview = useStore(computed(workbenchStore.previews, (previews) => previews.length > 0));
   const showWorkbench = useStore(workbenchStore.showWorkbench);
@@ -105,20 +111,24 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     workbenchStore.resetCurrentDocument();
   }, []);
 
-  const handleSyncFiles = useCallback(async () => {
-    setIsSyncing(true);
+  /*
+   * const handleSyncFiles = useCallback(async () => {
+   *   setIsSyncing(true);
+   */
 
-    try {
-      const directoryHandle = await window.showDirectoryPicker();
-      await workbenchStore.syncFiles(directoryHandle);
-      toast.success('Files synced successfully');
-    } catch (error) {
-      console.error('Error syncing files:', error);
-      toast.error('Failed to sync files');
-    } finally {
-      setIsSyncing(false);
-    }
-  }, []);
+  /*
+   *   try {
+   *     const directoryHandle = await window.showDirectoryPicker();
+   *     await workbenchStore.syncFiles(directoryHandle);
+   *     toast.success('Files synced successfully');
+   *   } catch (error) {
+   *     console.error('Error syncing files:', error);
+   *     toast.error('Failed to sync files');
+   *   } finally {
+   *     setIsSyncing(false);
+   *   }
+   * }, []);
+   */
 
   return (
     chatStarted && (
@@ -141,7 +151,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
         >
           <div className="absolute inset-0 px-2 lg:px-6">
             <div className="h-full flex flex-col bg-bolt-elements-background-depth-2 border border-bolt-elements-borderColor shadow-sm rounded-lg overflow-hidden">
-              <div className="flex items-center px-3 py-2 border-b border-bolt-elements-borderColor">
+              {/* <div className="flex items-center px-3 py-2 border-b border-bolt-elements-borderColor">
                 <Slider selected={selectedView} options={sliderOptions} setSelected={setSelectedView} />
                 <div className="ml-auto" />
                 {selectedView === 'code' && (
@@ -212,7 +222,7 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
                     workbenchStore.showWorkbench.set(false);
                   }}
                 />
-              </div>
+              </div> */}
               <div className="relative flex-1 overflow-hidden">
                 <View
                   initial={{ x: selectedView === 'code' ? 0 : '-100%' }}

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from '@remix-run/react';
 import Cookies from 'js-cookie';
 import { toast } from 'react-toastify';
-import { db, deleteById, getAll, setMessages } from '~/lib/persistence';
+import { deleteById, getAll, setMessages } from '~/lib/persistence';
 import { logStore } from '~/lib/stores/logs';
 import { classNames } from '~/utils/classNames';
 import type { Message } from 'ai';
@@ -47,16 +47,8 @@ export default function DataTab() {
   };
 
   const handleExportAllChats = async () => {
-    if (!db) {
-      const error = new Error('Database is not available');
-      logStore.logError('Failed to export chats - DB unavailable', error);
-      toast.error('Database is not available');
-
-      return;
-    }
-
     try {
-      const allChats = await getAll(db);
+      const allChats = await getAll();
       const exportData = {
         chats: allChats,
         exportDate: new Date().toISOString(),
@@ -79,19 +71,11 @@ export default function DataTab() {
       return;
     }
 
-    if (!db) {
-      const error = new Error('Database is not available');
-      logStore.logError('Failed to delete chats - DB unavailable', error);
-      toast.error('Database is not available');
-
-      return;
-    }
-
     try {
       setIsDeleting(true);
 
-      const allChats = await getAll(db);
-      await Promise.all(allChats.map((chat) => deleteById(db!, chat.id)));
+      const allChats = await getAll();
+      await Promise.all(allChats.map((chat) => deleteById(chat.id)));
       logStore.logSystem('All chats deleted successfully', { count: allChats.length });
       toast.success('All chats deleted successfully');
       navigate('/', { replace: true });
@@ -276,7 +260,7 @@ export default function DataTab() {
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
 
-      if (!file || !db) {
+      if (!file) {
         toast.error('Something went wrong');
         return;
       }
@@ -287,7 +271,7 @@ export default function DataTab() {
         const chatsToImport = processChatData(data);
 
         for (const chat of chatsToImport) {
-          await setMessages(db, chat.id, chat.messages, chat.urlId, chat.description);
+          await setMessages(chat.id, chat.messages, chat.urlId, chat.description);
         }
 
         logStore.logSystem('Chats imported successfully', { count: chatsToImport.length });
