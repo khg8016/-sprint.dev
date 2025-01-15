@@ -1,6 +1,6 @@
 /*
- * @ts-nocheck
- * Preventing TS checks with files presented in the video for a better presentation.
+ *@ts-nocheck
+ *Preventing TS checks with files presented in the video for a better presentation.
  */
 import type { Message } from 'ai';
 import React, { type RefCallback, useEffect, useState } from 'react';
@@ -10,12 +10,16 @@ import { IconButton } from '~/components/ui/IconButton';
 import { Workbench } from '~/components/workbench/Workbench.client';
 import { classNames } from '~/utils/classNames';
 
-// import { MODEL_LIST, PROVIDER_LIST, initializeModelList } from '~/utils/constants';
+/*
+ * import { MODEL_LIST, PROVIDER_LIST, initializeModelList } from '~/utils/constants';
+ * import { MODEL_LIST, initializeModelList } from '~/utils/constants';
+ */
 import { Messages } from './Messages.client';
 import { SendButton } from './SendButton.client';
 
 /*
  * import { APIKeyManager, getApiKeysFromCookies } from './APIKeyManager';
+ * import { getApiKeysFromCookies } from './APIKeyManager';
  * import Cookies from 'js-cookie';
  */
 import * as Tooltip from '@radix-ui/react-tooltip';
@@ -30,6 +34,8 @@ import FilePreview from './FilePreview';
 
 // import { ModelSelector } from '~/components/chat/ModelSelector';
 import { SpeechRecognitionButton } from '~/components/chat/SpeechRecognition';
+
+// import type { ProviderInfo, IProviderSetting } from '~/types/model';
 import type { ProviderInfo } from '~/types/model';
 import { ScreenshotStateManager } from './ScreenshotStateManager';
 import { toast } from 'react-toastify';
@@ -88,8 +94,9 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       /*
        * setModel,
        * provider,
-       * setProvider,
        */
+
+      // setProvider,
       providerList,
       input = '',
       enhancingPrompt,
@@ -113,10 +120,9 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
   ) => {
     const TEXTAREA_MAX_HEIGHT = chatStarted ? 400 : 200;
 
-    /*
-     * const [apiKeys, setApiKeys] = useState<Record<string, string>>(getApiKeysFromCookies());
-     * const [modelList, setModelList] = useState(MODEL_LIST);
-     */
+    // const [apiKeys, setApiKeys] = useState<Record<string, string>>(getApiKeysFromCookies());
+
+    // const [modelList, setModelList] = useState(MODEL_LIST);
     const [isModelSettingsCollapsed, setIsModelSettingsCollapsed] = useState(false);
     const [isListening, setIsListening] = useState(false);
     const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
@@ -158,6 +164,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
      *   return providerSettings;
      * }, []);
      */
+
     useEffect(() => {
       console.log(transcript);
     }, [transcript]);
@@ -210,7 +217,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
      */
 
     /*
-     *       // Clear invalid cookie data
      *       Cookies.remove('apiKeys');
      *     }
      *     setIsModelLoading('all');
@@ -412,9 +418,9 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                     'bg-bolt-elements-background-depth-2 p-3 rounded-lg border border-bolt-elements-borderColor relative w-full max-w-chat mx-auto z-prompt',
 
                     /*
-                     * {
-                     *   'sticky bottom-2': chatStarted,
-                     * },
+                     *{
+                     *  'sticky bottom-2': chatStarted,
+                     *},
                      */
                   )}
                 >

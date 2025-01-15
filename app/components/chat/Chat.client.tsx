@@ -127,11 +127,13 @@ export const ChatImpl = memo(
     const { activeProviders, promptId, autoSelectTemplate, contextOptimizationEnabled } = useSettings();
 
     const [model, setModel] = useState(() => {
-      const savedModel = Cookies.get('selectedModel');
+      // const savedModel = Cookies.get('selectedModel');
+      const savedModel = import.meta.env.VITE_MODEL || 'gpt-4o-mini';
       return savedModel || DEFAULT_MODEL;
     });
     const [provider, setProvider] = useState(() => {
-      const savedProvider = Cookies.get('selectedProvider');
+      // const savedProvider = Cookies.get('selectedProvider');
+      const savedProvider = import.meta.env.VITE_PROVIER || 'OpenAI';
       return (PROVIDER_LIST.find((p) => p.name === savedProvider) || DEFAULT_PROVIDER) as ProviderInfo;
     });
 
