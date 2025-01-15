@@ -1,6 +1,9 @@
 import { motion, type Variants } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from '@remix-run/react';
 import { toast } from 'react-toastify';
+import { signOut } from '~/lib/persistence/auth';
+import { supabase } from '~/lib/persistence/supabaseClient';
 import { Dialog, DialogButton, DialogDescription, DialogRoot, DialogTitle } from '~/components/ui/Dialog';
 import { ThemeSwitch } from '~/components/ui/ThemeSwitch';
 import { SettingsWindow } from '~/components/settings/SettingsWindow';
@@ -55,6 +58,25 @@ function CurrentDateTime() {
 }
 
 export const Menu = () => {
+  const navigate = useNavigate();
+  const [session, setSession] = useState<boolean>(false);
+
+  useEffect(() => {
+    // Check initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(!!session);
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(!!session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   const { duplicateCurrentChat, exportChat } = useChatHistorySupabase();
   const menuRef = useRef<HTMLDivElement>(null);
   const [list, setList] = useState<ChatHistoryItem[]>([]);
@@ -217,8 +239,33 @@ export const Menu = () => {
             </Dialog>
           </DialogRoot>
         </div>
-        <div className="flex items-center justify-between border-t border-bolt-elements-borderColor p-4">
+        <div className="flex items-center justify-between gap-2 border-t border-bolt-elements-borderColor p-4">
           <SettingsButton onClick={() => setIsSettingsOpen(true)} />
+          {session ? (
+            <button
+              onClick={async () => {
+                const { error } = await signOut();
+
+                if (!error) {
+                  navigate('/');
+                } else {
+                  toast.error('Failed to sign out');
+                }
+              }}
+              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+            >
+              Sign Out
+            </button>
+          ) : (
+            <button
+              onClick={async () => {
+                navigate('/auth');
+              }}
+              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+            >
+              Sign In
+            </button>
+          )}
           <ThemeSwitch />
         </div>
       </div>

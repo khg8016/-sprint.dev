@@ -3,17 +3,21 @@
  * Preventing TS checks with files presented in the video for a better presentation.
  */
 import type { Message } from 'ai';
-import React, { type RefCallback, useCallback, useEffect, useState } from 'react';
+import React, { type RefCallback, useEffect, useState } from 'react';
 import { ClientOnly } from 'remix-utils/client-only';
 import { Menu } from '~/components/sidebar/Menu.client';
 import { IconButton } from '~/components/ui/IconButton';
 import { Workbench } from '~/components/workbench/Workbench.client';
 import { classNames } from '~/utils/classNames';
-import { MODEL_LIST, PROVIDER_LIST, initializeModelList } from '~/utils/constants';
+
+// import { MODEL_LIST, PROVIDER_LIST, initializeModelList } from '~/utils/constants';
 import { Messages } from './Messages.client';
 import { SendButton } from './SendButton.client';
-import { APIKeyManager, getApiKeysFromCookies } from './APIKeyManager';
-import Cookies from 'js-cookie';
+
+/*
+ * import { APIKeyManager, getApiKeysFromCookies } from './APIKeyManager';
+ * import Cookies from 'js-cookie';
+ */
 import * as Tooltip from '@radix-ui/react-tooltip';
 
 import styles from './BaseChat.module.scss';
@@ -23,15 +27,17 @@ import { ExamplePrompts } from '~/components/chat/ExamplePrompts';
 import GitCloneButton from './GitCloneButton';
 
 import FilePreview from './FilePreview';
-import { ModelSelector } from '~/components/chat/ModelSelector';
+
+// import { ModelSelector } from '~/components/chat/ModelSelector';
 import { SpeechRecognitionButton } from '~/components/chat/SpeechRecognition';
-import type { IProviderSetting, ProviderInfo } from '~/types/model';
+import type { ProviderInfo } from '~/types/model';
 import { ScreenshotStateManager } from './ScreenshotStateManager';
 import { toast } from 'react-toastify';
 import StarterTemplates from './StarterTemplates';
 import type { ActionAlert } from '~/types/actions';
 import ChatAlert from './ChatAlert';
-import { LLMManager } from '~/lib/modules/llm/manager';
+
+// import { LLMManager } from '~/lib/modules/llm/manager';
 
 const TEXTAREA_MIN_HEIGHT = 76;
 
@@ -76,9 +82,12 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       chatStarted = false,
       isStreaming = false,
       model,
-      setModel,
-      provider,
-      setProvider,
+
+      /*
+       * setModel,
+       * provider,
+       * setProvider,
+       */
       providerList,
       input = '',
       enhancingPrompt,
@@ -101,36 +110,52 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     ref,
   ) => {
     const TEXTAREA_MAX_HEIGHT = chatStarted ? 400 : 200;
-    const [apiKeys, setApiKeys] = useState<Record<string, string>>(getApiKeysFromCookies());
-    const [modelList, setModelList] = useState(MODEL_LIST);
+
+    /*
+     * const [apiKeys, setApiKeys] = useState<Record<string, string>>(getApiKeysFromCookies());
+     * const [modelList, setModelList] = useState(MODEL_LIST);
+     */
     const [isModelSettingsCollapsed, setIsModelSettingsCollapsed] = useState(false);
     const [isListening, setIsListening] = useState(false);
     const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
     const [transcript, setTranscript] = useState('');
-    const [isModelLoading, setIsModelLoading] = useState<string | undefined>('all');
 
-    const getProviderSettings = useCallback(() => {
-      let providerSettings: Record<string, IProviderSetting> | undefined = undefined;
+    // const [isModelLoading, setIsModelLoading] = useState<string | undefined>('all');
 
-      try {
-        const savedProviderSettings = Cookies.get('providers');
+    /*
+     * const getProviderSettings = useCallback(() => {
+     *   let providerSettings: Record<string, IProviderSetting> | undefined = undefined;
+     */
 
-        if (savedProviderSettings) {
-          const parsedProviderSettings = JSON.parse(savedProviderSettings);
+    /*
+     *   try {
+     *     const savedProviderSettings = Cookies.get('providers');
+     */
 
-          if (typeof parsedProviderSettings === 'object' && parsedProviderSettings !== null) {
-            providerSettings = parsedProviderSettings;
-          }
-        }
-      } catch (error) {
-        console.error('Error loading Provider Settings from cookies:', error);
+    /*
+     *     if (savedProviderSettings) {
+     *       const parsedProviderSettings = JSON.parse(savedProviderSettings);
+     */
 
-        // Clear invalid cookie data
-        Cookies.remove('providers');
-      }
+    /*
+     *       if (typeof parsedProviderSettings === 'object' && parsedProviderSettings !== null) {
+     *         providerSettings = parsedProviderSettings;
+     *       }
+     *     }
+     *   } catch (error) {
+     *     console.error('Error loading Provider Settings from cookies:', error);
+     */
 
-      return providerSettings;
-    }, []);
+    /*
+     *     // Clear invalid cookie data
+     *     Cookies.remove('providers');
+     *   }
+     */
+
+    /*
+     *   return providerSettings;
+     * }, []);
+     */
     useEffect(() => {
       console.log(transcript);
     }, [transcript]);
@@ -167,63 +192,77 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       }
     }, []);
 
-    useEffect(() => {
-      if (typeof window !== 'undefined') {
-        const providerSettings = getProviderSettings();
-        let parsedApiKeys: Record<string, string> | undefined = {};
+    /*
+     * useEffect(() => {
+     *   if (typeof window !== 'undefined') {
+     *     const providerSettings = getProviderSettings();
+     *     let parsedApiKeys: Record<string, string> | undefined = {};
+     */
 
-        try {
-          parsedApiKeys = getApiKeysFromCookies();
-          setApiKeys(parsedApiKeys);
-        } catch (error) {
-          console.error('Error loading API keys from cookies:', error);
+    /*
+     *     try {
+     *       parsedApiKeys = getApiKeysFromCookies();
+     *       setApiKeys(parsedApiKeys);
+     *     } catch (error) {
+     *       console.error('Error loading API keys from cookies:', error);
+     */
 
-          // Clear invalid cookie data
-          Cookies.remove('apiKeys');
-        }
-        setIsModelLoading('all');
-        initializeModelList({ apiKeys: parsedApiKeys, providerSettings })
-          .then((modelList) => {
-            setModelList(modelList);
-          })
-          .catch((error) => {
-            console.error('Error initializing model list:', error);
-          })
-          .finally(() => {
-            setIsModelLoading(undefined);
-          });
-      }
-    }, [providerList, provider]);
+    /*
+     *       // Clear invalid cookie data
+     *       Cookies.remove('apiKeys');
+     *     }
+     *     setIsModelLoading('all');
+     *     initializeModelList({ apiKeys: parsedApiKeys, providerSettings })
+     *       .then((modelList) => {
+     *         setModelList(modelList);
+     *       })
+     *       .catch((error) => {
+     *         console.error('Error initializing model list:', error);
+     *       })
+     *       .finally(() => {
+     *         setIsModelLoading(undefined);
+     *       });
+     *   }
+     * }, [providerList, provider]);
+     */
 
-    const onApiKeysChange = async (providerName: string, apiKey: string) => {
-      const newApiKeys = { ...apiKeys, [providerName]: apiKey };
-      setApiKeys(newApiKeys);
-      Cookies.set('apiKeys', JSON.stringify(newApiKeys));
+    /*
+     * const onApiKeysChange = async (providerName: string, apiKey: string) => {
+     *   const newApiKeys = { ...apiKeys, [providerName]: apiKey };
+     *   setApiKeys(newApiKeys);
+     *   Cookies.set('apiKeys', JSON.stringify(newApiKeys));
+     */
 
-      const provider = LLMManager.getInstance(import.meta.env || process.env || {}).getProvider(providerName);
+    //   const provider = LLMManager.getInstance(import.meta.env || process.env || {}).getProvider(providerName);
 
-      if (provider && provider.getDynamicModels) {
-        setIsModelLoading(providerName);
+    /*
+     *   if (provider && provider.getDynamicModels) {
+     *     setIsModelLoading(providerName);
+     */
 
-        try {
-          const providerSettings = getProviderSettings();
-          const staticModels = provider.staticModels;
-          const dynamicModels = await provider.getDynamicModels(
-            newApiKeys,
-            providerSettings,
-            import.meta.env || process.env || {},
-          );
+    /*
+     *     try {
+     *       const providerSettings = getProviderSettings();
+     *       const staticModels = provider.staticModels;
+     *       const dynamicModels = await provider.getDynamicModels(
+     *         newApiKeys,
+     *         providerSettings,
+     *         import.meta.env || process.env || {},
+     *       );
+     */
 
-          setModelList((preModels) => {
-            const filteredOutPreModels = preModels.filter((x) => x.provider !== providerName);
-            return [...filteredOutPreModels, ...staticModels, ...dynamicModels];
-          });
-        } catch (error) {
-          console.error('Error loading dynamic models:', error);
-        }
-        setIsModelLoading(undefined);
-      }
-    };
+    /*
+     *       setModelList((preModels) => {
+     *         const filteredOutPreModels = preModels.filter((x) => x.provider !== providerName);
+     *         return [...filteredOutPreModels, ...staticModels, ...dynamicModels];
+     *       });
+     *     } catch (error) {
+     *       console.error('Error loading dynamic models:', error);
+     *     }
+     *     setIsModelLoading(undefined);
+     *   }
+     * };
+     */
 
     const startListening = () => {
       if (recognition) {
@@ -401,7 +440,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                     <rect className={classNames(styles.PromptEffectLine)} pathLength="100" strokeLinecap="round"></rect>
                     <rect className={classNames(styles.PromptShine)} x="48" y="24" width="70" height="1"></rect>
                   </svg>
-                  <div>
+                  {/* <div>
                     <ClientOnly>
                       {() => (
                         <div className={isModelSettingsCollapsed ? 'hidden' : ''}>
@@ -428,7 +467,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                         </div>
                       )}
                     </ClientOnly>
-                  </div>
+                  </div> */}
                   <FilePreview
                     files={uploadedFiles}
                     imageDataList={imageDataList}
