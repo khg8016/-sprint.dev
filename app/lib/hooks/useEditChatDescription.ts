@@ -7,6 +7,7 @@ import {
   getMessages,
   updateChatDescription,
 } from '~/lib/persistence';
+import { useSupabaseAuth } from './useSupabaseAuth';
 
 interface EditChatDescriptionOptions {
   initialDescription?: string;
@@ -43,6 +44,7 @@ export function useEditChatDescription({
   customChatId,
   syncWithGlobalStore,
 }: EditChatDescriptionOptions): EditChatDescriptionHook {
+  const { userId } = useSupabaseAuth();
   const chatIdFromStore = useStore(chatIdStore);
   const [editing, setEditing] = useState(false);
   const [currentDescription, setCurrentDescription] = useState(initialDescription);
@@ -67,8 +69,12 @@ export function useEditChatDescription({
       return initialDescription;
     }
 
+    if (!userId) {
+      return initialDescription;
+    }
+
     try {
-      const chat = await getMessages(chatId);
+      const chat = await getMessages(userId, chatId);
       return chat?.description || initialDescription;
     } catch (error) {
       console.error('Failed to fetch latest description:', error);
@@ -116,13 +122,17 @@ export function useEditChatDescription({
         return;
       }
 
+      if (!userId) {
+        return;
+      }
+
       try {
         if (!chatId) {
           toast.error('Chat Id is not available');
           return;
         }
 
-        await updateChatDescription(chatId, currentDescription);
+        await updateChatDescription(userId, chatId, currentDescription);
 
         if (syncWithGlobalStore) {
           descriptionStore.set(currentDescription);

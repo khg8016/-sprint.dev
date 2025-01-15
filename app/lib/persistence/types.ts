@@ -5,4 +5,5 @@ export interface ChatHistoryItem {
   description?: string;
   messages: Message[];
   timestamp: string;
+  userId: string;
 }

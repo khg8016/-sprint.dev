@@ -2,15 +2,15 @@ import type { Message } from 'ai';
 import { supabase } from './supabaseClient';
 import type { ChatHistoryItem } from './types';
 
-// import { createScopedLogger } from '~/utils/logger';
-
-// const logger = createScopedLogger('ChatHistory');
-
+/**
+ * Supabase로부터 받은 레코드를 ChatHistoryItem으로 변환
+ */
 function convertChatHistoryItem(row: any): ChatHistoryItem {
   return {
     id: row.id,
+    userId: row.user_id, // user_id → userId
     messages: row.messages,
-    urlId: row.url_id, // 스네이크 케이스 -> CamelCase
+    urlId: row.url_id, // url_id → urlId
     description: row.description,
     timestamp: row.timestamp,
   };
@@ -21,10 +21,22 @@ function convertChatHistoryItems(rows: any[]): ChatHistoryItem[] {
 }
 
 /**
- * 1) DB에서 모든 chats 가져오기
+ * (옵션) 에러에서 '0 rows'를 구분해 null 반환할지, 바로 throw할지 결정
+ * 여기서는 예시로 null 반환 방식을 사용.
  */
-export async function getAll(): Promise<ChatHistoryItem[]> {
-  const { data, error } = await supabase.from('chats').select('*');
+function handleSingleSelectError(error: any): null {
+  if (error.details?.includes('0 rows')) {
+    return null;
+  }
+
+  throw error;
+}
+
+/**
+ * 1) 특정 유저(userId)의 모든 채팅 목록 가져오기
+ */
+export async function getAll(userId: string): Promise<ChatHistoryItem[]> {
+  const { data, error } = await supabase.from('chats').select('*').eq('user_id', userId);
 
   if (error) {
     throw error;
@@ -35,8 +47,10 @@ export async function getAll(): Promise<ChatHistoryItem[]> {
 
 /**
  * 2) chats 테이블에 메시지 저장/업데이트 (upsert)
+ * - userId, id, messages, urlId, description, timestamp
  */
 export async function setMessages(
+  userId: string,
   id: string,
   messages: Message[],
   urlId?: string,
@@ -50,6 +64,7 @@ export async function setMessages(
   const nowString = new Date().toISOString();
 
   const { error } = await supabase.from('chats').upsert({
+    user_id: userId,
     id,
     messages,
     url_id: urlId,
@@ -63,32 +78,46 @@ export async function setMessages(
 }
 
 /**
- * 3) id 혹은 urlId로 chats 레코드 가져오기
+ * 3) id 혹은 urlId로 해당 유저의 chats 레코드 가져오기
+ *  - 우선 id로 검색 → 없으면 urlId로 검색
  */
-export async function getMessages(id: string): Promise<ChatHistoryItem | null> {
-  const byId = await getMessagesById(id);
-
-  if (byId) {
-    return byId;
-  }
-
-  const byUrlId = await getMessagesByUrlId(id);
+export async function getMessages(userId: string, idOrUrl: string): Promise<ChatHistoryItem | null> {
+  const byUrlId = await getMessagesByUrlId(userId, idOrUrl);
 
   if (byUrlId) {
     return byUrlId;
+  }
+
+  const byId = await getMessagesById(userId, idOrUrl);
+
+  if (byId) {
+    return byId;
   }
 
   return null;
 }
 
 /**
- * 4) urlId 로 검색
+ * 4) urlId로 검색
  */
-export async function getMessagesByUrlId(id: string): Promise<ChatHistoryItem | null> {
-  const { data, error } = await supabase.from('chats').select('*').eq('url_id', id).single();
+export async function getMessagesByUrlId(userId: string, urlId: string): Promise<ChatHistoryItem | null> {
+  const { data, error } = await supabase.from('chats').select('*').match({ user_id: userId, url_id: urlId }).single();
 
   if (error) {
-    // 없는 경우도 error 처리될 수 있으므로 분기 처리
+    return handleSingleSelectError(error);
+  }
+
+  return data ? convertChatHistoryItem(data) : null;
+}
+
+/**
+ * 5) id로 검색
+ */
+export async function getMessagesById(userId: string, id: string): Promise<ChatHistoryItem | null> {
+  const { data, error } = await supabase.from('chats').select('*').match({ user_id: userId, id }).single();
+
+  if (error) {
+    // "0 rows" 오류라면 null 반환
     if (error.details?.includes('0 rows')) {
       return null;
     }
@@ -100,27 +129,10 @@ export async function getMessagesByUrlId(id: string): Promise<ChatHistoryItem | 
 }
 
 /**
- * 5) id 로 검색
+ * 6) 특정 채팅 삭제
  */
-export async function getMessagesById(id: string): Promise<ChatHistoryItem | null> {
-  const { data, error } = await supabase.from('chats').select('*').eq('id', id).single();
-
-  if (error) {
-    if (error.details?.includes('0 rows')) {
-      return null;
-    }
-
-    throw error;
-  }
-
-  return data ? convertChatHistoryItem(data) : null;
-}
-
-/**
- * 6) id 기준으로 삭제
- */
-export async function deleteById(id: string): Promise<void> {
-  const { error } = await supabase.from('chats').delete().eq('id', id);
+export async function deleteById(userId: string, id: string): Promise<void> {
+  const { error } = await supabase.from('chats').delete().match({ user_id: userId, id });
 
   if (error) {
     throw error;
@@ -128,10 +140,12 @@ export async function deleteById(id: string): Promise<void> {
 }
 
 /**
- * 7) 다음 ID(기존 id 중 최대값+1)
+ * 7) 다음 ID (현재 userId 소유 레코드들 중 최대 id+1)
+ *   - indexedDB 로직을 그대로 살린 예시.
+ *   - 실제로는 전역적으로 unique한 UUID를 쓰는 편이 나을 수도 있음.
  */
-export async function getNextId(): Promise<string> {
-  const { data, error } = await supabase.from('chats').select('id');
+export async function getNextId(userId: string): Promise<string> {
+  const { data, error } = await supabase.from('chats').select('id').eq('user_id', userId);
 
   if (error) {
     throw error;
@@ -147,9 +161,10 @@ export async function getNextId(): Promise<string> {
 
 /**
  * 8) urlId 중복 방지 로직
+ *   - 특정 userId 범위 안에서 url_id 목록 조회
  */
-export async function getUrlId(id: string): Promise<string> {
-  const idList = await getUrlIds();
+export async function getUrlId(userId: string, id: string): Promise<string> {
+  const idList = await getUrlIds(userId);
 
   if (!idList.includes(id)) {
     return id;
@@ -164,8 +179,8 @@ export async function getUrlId(id: string): Promise<string> {
   }
 }
 
-async function getUrlIds(): Promise<string[]> {
-  const { data, error } = await supabase.from('chats').select('url_id');
+async function getUrlIds(userId: string): Promise<string[]> {
+  const { data, error } = await supabase.from('chats').select('url_id').eq('user_id', userId);
 
   if (error) {
     throw error;
@@ -177,8 +192,8 @@ async function getUrlIds(): Promise<string[]> {
 /**
  * 9) forkChat: 특정 messageId까지의 대화만 복사해 새 Chat 생성
  */
-export async function forkChat(chatId: string, messageId: string): Promise<string> {
-  const chat = await getMessages(chatId);
+export async function forkChat(userId: string, chatId: string, messageId: string): Promise<string> {
+  const chat = await getMessages(userId, chatId);
 
   if (!chat) {
     throw new Error('Chat not found');
@@ -193,14 +208,14 @@ export async function forkChat(chatId: string, messageId: string): Promise<strin
   const messages = chat.messages.slice(0, messageIndex + 1);
   const newDesc = chat.description ? `${chat.description} (fork)` : 'Forked chat';
 
-  return createChatFromMessages(newDesc, messages);
+  return createChatFromMessages(userId, newDesc, messages);
 }
 
 /**
  * 10) duplicateChat: 전체 대화를 복사해 새 Chat 생성
  */
-export async function duplicateChat(id: string): Promise<string> {
-  const chat = await getMessages(id);
+export async function duplicateChat(userId: string, id: string): Promise<string> {
+  const chat = await getMessages(userId, id);
 
   if (!chat) {
     throw new Error('Chat not found');
@@ -208,17 +223,21 @@ export async function duplicateChat(id: string): Promise<string> {
 
   const newDesc = chat.description ? `${chat.description} (copy)` : 'Chat (copy)';
 
-  return createChatFromMessages(newDesc, chat.messages);
+  return createChatFromMessages(userId, newDesc, chat.messages);
 }
 
 /**
  * 11) 기존 메시지 배열로 새 Chat 생성
  */
-export async function createChatFromMessages(description: string, messages: Message[]): Promise<string> {
-  const newId = await getNextId();
-  const newUrlId = await getUrlId(newId);
+export async function createChatFromMessages(
+  userId: string,
+  description: string,
+  messages: Message[],
+): Promise<string> {
+  const newId = await getNextId(userId);
+  const newUrlId = await getUrlId(userId, newId);
 
-  await setMessages(newId, messages, newUrlId, description);
+  await setMessages(userId, newId, messages, newUrlId, description);
 
   return newUrlId;
 }
@@ -226,16 +245,16 @@ export async function createChatFromMessages(description: string, messages: Mess
 /**
  * 12) 채팅 설명 업데이트
  */
-export async function updateChatDescription(id: string, description: string): Promise<void> {
-  const chat = await getMessages(id);
+export async function updateChatDescription(userId: string, id: string, newDescription: string): Promise<void> {
+  const chat = await getMessages(userId, id);
 
   if (!chat) {
     throw new Error('Chat not found');
   }
 
-  if (!description.trim()) {
+  if (!newDescription.trim()) {
     throw new Error('Description cannot be empty');
   }
 
-  await setMessages(id, chat.messages, chat.urlId, description, chat.timestamp);
+  await setMessages(userId, id, chat.messages, chat.urlId, newDescription, chat.timestamp);
 }

@@ -6,6 +6,7 @@ import { deleteById, getAll, setMessages } from '~/lib/persistence';
 import { logStore } from '~/lib/stores/logs';
 import { classNames } from '~/utils/classNames';
 import type { Message } from 'ai';
+import { useSupabaseAuth } from '~/lib/hooks/useSupabaseAuth';
 
 // List of supported providers that can have API keys
 const API_KEY_PROVIDERS = [
@@ -31,6 +32,7 @@ interface ApiKeys {
 }
 
 export default function DataTab() {
+  const { userId } = useSupabaseAuth();
   const navigate = useNavigate();
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -47,8 +49,12 @@ export default function DataTab() {
   };
 
   const handleExportAllChats = async () => {
+    if (!userId) {
+      return;
+    }
+
     try {
-      const allChats = await getAll();
+      const allChats = await getAll(userId);
       const exportData = {
         chats: allChats,
         exportDate: new Date().toISOString(),
@@ -71,11 +77,15 @@ export default function DataTab() {
       return;
     }
 
+    if (!userId) {
+      return;
+    }
+
     try {
       setIsDeleting(true);
 
-      const allChats = await getAll();
-      await Promise.all(allChats.map((chat) => deleteById(chat.id)));
+      const allChats = await getAll(userId);
+      await Promise.all(allChats.map((chat) => deleteById(userId, chat.id)));
       logStore.logSystem('All chats deleted successfully', { count: allChats.length });
       toast.success('All chats deleted successfully');
       navigate('/', { replace: true });
@@ -253,6 +263,10 @@ export default function DataTab() {
   };
 
   const handleImportChats = () => {
+    if (!userId) {
+      return;
+    }
+
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
@@ -271,7 +285,7 @@ export default function DataTab() {
         const chatsToImport = processChatData(data);
 
         for (const chat of chatsToImport) {
-          await setMessages(chat.id, chat.messages, chat.urlId, chat.description);
+          await setMessages(userId, chat.id, chat.messages, chat.urlId, chat.description);
         }
 
         logStore.logSystem('Chats imported successfully', { count: chatsToImport.length });

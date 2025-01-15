@@ -37,6 +37,8 @@ import StarterTemplates from './StarterTemplates';
 import type { ActionAlert } from '~/types/actions';
 import ChatAlert from './ChatAlert';
 
+import { useSupabaseAuth } from '~/lib/hooks/useSupabaseAuth';
+
 // import { LLMManager } from '~/lib/modules/llm/manager';
 
 const TEXTAREA_MIN_HEIGHT = 76;
@@ -349,6 +351,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
         }
       }
     };
+    const { userId } = useSupabaseAuth();
 
     const baseChat = (
       <div
@@ -382,6 +385,7 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                       className="flex flex-col w-full flex-1 max-w-chat pb-6 mx-auto z-1"
                       messages={messages}
                       isStreaming={isStreaming}
+                      userId={userId}
                     />
                   ) : null;
                 }}

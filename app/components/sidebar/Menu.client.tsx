@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from '@remix-run/react';
 import { toast } from 'react-toastify';
 import { signOut } from '~/lib/persistence/auth';
-import { supabase } from '~/lib/persistence/supabaseClient';
+import { useSupabaseAuth } from '~/lib/hooks/useSupabaseAuth';
 import { Dialog, DialogButton, DialogDescription, DialogRoot, DialogTitle } from '~/components/ui/Dialog';
 import { ThemeSwitch } from '~/components/ui/ThemeSwitch';
 import { SettingsWindow } from '~/components/settings/SettingsWindow';
@@ -59,24 +59,7 @@ function CurrentDateTime() {
 
 export const Menu = () => {
   const navigate = useNavigate();
-  const [session, setSession] = useState<boolean>(false);
-
-  useEffect(() => {
-    // Check initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(!!session);
-    });
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(!!session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
+  const { isAuthenticated, userEmail, userId } = useSupabaseAuth();
   const { duplicateCurrentChat, exportChat } = useChatHistorySupabase();
   const menuRef = useRef<HTMLDivElement>(null);
   const [list, setList] = useState<ChatHistoryItem[]>([]);
@@ -90,29 +73,36 @@ export const Menu = () => {
   });
 
   const loadEntries = useCallback(() => {
-    getAll()
-      .then((list) => list.filter((item) => item.urlId && item.description))
-      .then(setList)
-      .catch((error) => toast.error(error.message));
-  }, []);
+    if (userId) {
+      getAll(userId)
+        .then((list) => list.filter((item) => item.urlId && item.description))
+        .then(setList)
+        .catch((error) => toast.error(error.message));
+    }
+  }, [userId]);
 
-  const deleteItem = useCallback((event: React.UIEvent, item: ChatHistoryItem) => {
-    event.preventDefault();
+  const deleteItem = useCallback(
+    (event: React.UIEvent, item: ChatHistoryItem) => {
+      event.preventDefault();
 
-    deleteById(item.id)
-      .then(() => {
-        loadEntries();
+      if (userId) {
+        deleteById(userId, item.id)
+          .then(() => {
+            loadEntries();
 
-        if (chatId.get() === item.id) {
-          // hard page navigation to clear the stores
-          window.location.pathname = '/';
-        }
-      })
-      .catch((error) => {
-        toast.error('Failed to delete conversation');
-        logger.error(error);
-      });
-  }, []);
+            if (chatId.get() === item.id) {
+              // hard page navigation to clear the stores
+              window.location.pathname = '/';
+            }
+          })
+          .catch((error) => {
+            toast.error('Failed to delete conversation');
+            logger.error(error);
+          });
+      }
+    },
+    [userId],
+  );
 
   const closeDialog = () => {
     setDialogContent(null);
@@ -241,27 +231,28 @@ export const Menu = () => {
         </div>
         <div className="flex items-center justify-between gap-2 border-t border-bolt-elements-borderColor p-4">
           <SettingsButton onClick={() => setIsSettingsOpen(true)} />
-          {session ? (
-            <button
-              onClick={async () => {
-                const { error } = await signOut();
+          {isAuthenticated ? (
+            <div className="flex flex-col items-end gap-1">
+              <span className="text-xs text-gray-500">{userEmail}</span>
+              <button
+                onClick={async () => {
+                  const { error } = await signOut();
 
-                if (!error) {
-                  navigate('/');
-                } else {
-                  toast.error('Failed to sign out');
-                }
-              }}
-              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-            >
-              Sign Out
-            </button>
+                  if (!error) {
+                    navigate('/');
+                  } else {
+                    toast.error('Failed to sign out');
+                  }
+                }}
+                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+              >
+                Sign Out
+              </button>
+            </div>
           ) : (
             <button
-              onClick={async () => {
-                navigate('/auth');
-              }}
-              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+              onClick={() => navigate('/auth')}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
             >
               Sign In
             </button>

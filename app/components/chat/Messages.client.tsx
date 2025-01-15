@@ -14,10 +14,11 @@ interface MessagesProps {
   className?: string;
   isStreaming?: boolean;
   messages?: Message[];
+  userId?: string;
 }
 
 export const Messages = React.forwardRef<HTMLDivElement, MessagesProps>((props: MessagesProps, ref) => {
-  const { id, isStreaming = false, messages = [] } = props;
+  const { id, isStreaming = false, messages = [], userId } = props;
   const location = useLocation();
 
   const handleRewind = (messageId: string) => {
@@ -26,14 +27,14 @@ export const Messages = React.forwardRef<HTMLDivElement, MessagesProps>((props: 
     window.location.search = searchParams.toString();
   };
 
-  const handleFork = async (messageId: string) => {
+  const handleFork = async (userId: string, messageId: string) => {
     try {
       if (!chatId.get()) {
         toast.error('Chat persistence is not available');
         return;
       }
 
-      const urlId = await forkChat(chatId.get()!, messageId);
+      const urlId = await forkChat(userId, chatId.get()!, messageId);
       window.location.href = `/chat/${urlId}`;
     } catch (error) {
       toast.error('Failed to fork chat: ' + (error as Error).message);
@@ -90,17 +91,18 @@ export const Messages = React.forwardRef<HTMLDivElement, MessagesProps>((props: 
                         />
                       </WithTooltip>
                     )}
-
-                    <WithTooltip tooltip="Fork chat from this message">
-                      <button
-                        onClick={() => handleFork(messageId)}
-                        key="i-ph:git-fork"
-                        className={classNames(
-                          'i-ph:git-fork',
-                          'text-xl text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary transition-colors',
-                        )}
-                      />
-                    </WithTooltip>
+                    {userId && (
+                      <WithTooltip tooltip="Fork chat from this message">
+                        <button
+                          onClick={() => handleFork(userId, messageId)}
+                          key="i-ph:git-fork"
+                          className={classNames(
+                            'i-ph:git-fork',
+                            'text-xl text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary transition-colors',
+                          )}
+                        />
+                      </WithTooltip>
+                    )}
                   </div>
                 )}
               </div>
