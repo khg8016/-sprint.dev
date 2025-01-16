@@ -15,6 +15,7 @@ export const ImportFolderButton: React.FC<ImportFolderButtonProps> = ({ classNam
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const allFiles = Array.from(e.target.files || []);
+    console.log(allFiles);
 
     const filteredFiles = allFiles.filter((file) => {
       const path = file.webkitRelativePath.split('/').slice(1).join('/');
