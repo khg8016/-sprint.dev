@@ -8,12 +8,18 @@ import { Dialog, DialogButton, DialogDescription, DialogRoot, DialogTitle } from
 import { ThemeSwitch } from '~/components/ui/ThemeSwitch';
 import { SettingsWindow } from '~/components/settings/SettingsWindow';
 import { SettingsButton } from '~/components/ui/SettingsButton';
-import { deleteById, getPaginatedChats, chatId, type ChatHistoryItem, useChatHistorySupabase } from '~/lib/persistence';
+import {
+  deleteById,
+  getPaginatedChats,
+  chatId,
+  type ChatHistoryItem,
+  useChatHistorySupabase,
+  searchChats,
+} from '~/lib/persistence';
 import { cubicEasingFn } from '~/utils/easings';
 import { logger } from '~/utils/logger';
 import { HistoryItem } from './HistoryItem';
 import { binDates } from './date-binning';
-import { useSearchFilter } from '~/lib/hooks/useSearchFilter';
 
 const menuVariants = {
   closed: {
@@ -71,11 +77,74 @@ export const Menu = () => {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout>();
 
-  const { filteredItems: filteredList, handleSearchChange } = useSearchFilter({
-    items: list,
-    searchFields: ['description'],
-  });
+  // 검색 관련 상태
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<ChatHistoryItem[]>([]);
+
+  // const [isSearching, setIsSearching] = useState(false);
+
+  // 디바운스된 검색 처리
+  const handleSearch = useCallback(
+    async (query: string) => {
+      if (!userId) {
+        return;
+      }
+
+      if (!query.trim()) {
+        setSearchResults([]);
+
+        // setIsSearching(false);
+
+        return;
+      }
+
+      // setIsSearching(true);
+
+      try {
+        const results = await searchChats(userId, query);
+        setSearchResults(results);
+      } catch (error) {
+        console.error('Search failed:', error);
+        toast.error('Failed to search chats');
+      } finally {
+        // setIsSearching(false);
+      }
+    },
+    [userId],
+  );
+
+  // 검색어 입력 핸들러
+  const handleSearchChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const query = e.target.value;
+      setSearchQuery(query);
+
+      // 이전 타이머 취소
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+
+      // 300ms 디바운스
+      searchTimeoutRef.current = setTimeout(() => {
+        void handleSearch(query);
+      }, 300);
+    },
+    [handleSearch],
+  );
+
+  // 컴포넌트 언마운트시 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // 현재 보여줄 목록 (검색 결과 또는 페이지네이션 목록)
+  const displayList = searchQuery ? searchResults : list;
 
   // Cache invalidation key that changes when a new chat is created
   const [cacheKey, setCacheKey] = useState(0);
@@ -287,13 +356,13 @@ export const Menu = () => {
           )}
         </div>
         <div ref={scrollContainerRef} className="flex-1 overflow-auto pl-4 pr-5 pb-5">
-          {filteredList.length === 0 && (
+          {displayList.length === 0 && (
             <div className="pl-2 text-bolt-elements-textTertiary">
-              {list.length === 0 ? 'No previous conversations' : 'No matches found'}
+              {searchQuery ? 'No matches found' : list.length === 0 ? 'No previous conversations' : 'No matches found'}
             </div>
           )}
           <DialogRoot open={dialogContent !== null}>
-            {binDates(filteredList).map(({ category, items }) => (
+            {binDates(displayList).map(({ category, items }) => (
               <div key={category} className="mt-4 first:mt-0 space-y-1">
                 <div className="text-bolt-elements-textTertiary sticky top-0 z-1 bg-bolt-elements-background-depth-2 pl-2 pt-2 pb-1">
                   {category}
@@ -339,7 +408,7 @@ export const Menu = () => {
               )}
             </Dialog>
           </DialogRoot>
-          {isLoadingMore && (
+          {!searchQuery && isLoadingMore && (
             <div className="flex justify-center py-4">
               <div className="w-6 h-6 border-2 border-bolt-elements-borderColor border-t-bolt-elements-textPrimary rounded-full animate-spin" />
             </div>

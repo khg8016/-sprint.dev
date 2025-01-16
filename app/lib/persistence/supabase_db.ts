@@ -52,6 +52,27 @@ export async function getAll(userId: string): Promise<ChatHistoryItem[]> {
 /**
  * 채팅 목록을 페이지네이션으로 가져오기
  */
+/**
+ * 채팅 검색하기
+ */
+export async function searchChats(userId: string, query: string): Promise<ChatHistoryItem[]> {
+  const { data, error } = await supabase
+    .from('chats')
+    .select('id, url_id, description, timestamp')
+    .eq('user_id', userId)
+    .ilike('description', `%${query}%`)
+    .order('timestamp', { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return convertChatHistoryItems(data || []);
+}
+
+/**
+ * 채팅 목록을 페이지네이션으로 가져오기
+ */
 export async function getPaginatedChats(
   userId: string,
   page: number,
