@@ -36,13 +36,45 @@ function handleSingleSelectError(error: any): null {
  * 1) 특정 유저(userId)의 모든 채팅 목록 가져오기
  */
 export async function getAll(userId: string): Promise<ChatHistoryItem[]> {
-  const { data, error } = await supabase.from('chats').select('*').eq('user_id', userId);
+  const { data, error } = await supabase
+    .from('chats')
+    .select('id, url_id, description, timestamp', { count: 'exact' })
+    .eq('user_id', userId)
+    .order('timestamp', { ascending: false });
 
   if (error) {
     throw error;
   }
 
   return convertChatHistoryItems(data || []);
+}
+
+/**
+ * 채팅 목록을 페이지네이션으로 가져오기
+ */
+export async function getPaginatedChats(
+  userId: string,
+  page: number,
+  pageSize: number,
+): Promise<{ items: ChatHistoryItem[]; hasMore: boolean }> {
+  const start = page * pageSize;
+  const end = start + pageSize - 1;
+
+  const { data, error, count } = await supabase
+    .from('chats')
+    .select('id, url_id, description, timestamp', { count: 'exact' })
+    .eq('user_id', userId)
+    .order('timestamp', { ascending: false })
+    .range(start, end);
+
+  if (error) {
+    throw error;
+  }
+
+  return {
+    items: convertChatHistoryItems(data || []),
+    hasMore: count ? count > (page + 1) * pageSize : false,
+  };
 }
 
 /**

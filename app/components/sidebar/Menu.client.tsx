@@ -1,5 +1,5 @@
 import { motion, type Variants } from 'framer-motion';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate } from '@remix-run/react';
 import { toast } from 'react-toastify';
 import { signOut } from '~/lib/persistence/auth';
@@ -8,7 +8,7 @@ import { Dialog, DialogButton, DialogDescription, DialogRoot, DialogTitle } from
 import { ThemeSwitch } from '~/components/ui/ThemeSwitch';
 import { SettingsWindow } from '~/components/settings/SettingsWindow';
 import { SettingsButton } from '~/components/ui/SettingsButton';
-import { deleteById, getAll, chatId, type ChatHistoryItem, useChatHistorySupabase } from '~/lib/persistence';
+import { deleteById, getPaginatedChats, chatId, type ChatHistoryItem, useChatHistorySupabase } from '~/lib/persistence';
 import { cubicEasingFn } from '~/utils/easings';
 import { logger } from '~/utils/logger';
 import { HistoryItem } from './HistoryItem';
@@ -66,20 +66,124 @@ export const Menu = () => {
   const [open, setOpen] = useState(false);
   const [dialogContent, setDialogContent] = useState<DialogContent>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const { filteredItems: filteredList, handleSearchChange } = useSearchFilter({
     items: list,
     searchFields: ['description'],
   });
 
-  const loadEntries = useCallback(() => {
-    if (userId) {
-      getAll(userId)
-        .then((list) => list.filter((item) => item.urlId && item.description))
-        .then(setList)
-        .catch((error) => toast.error(error.message));
+  // Cache invalidation key that changes when a new chat is created
+  const [cacheKey, setCacheKey] = useState(0);
+
+  // Memoized entries cache
+  const entriesCache = useMemo(() => {
+    const cache = new Map<string, Promise<{ items: ChatHistoryItem[]; hasMore: boolean }>>();
+
+    return {
+      get: async (userId: string, page: number) => {
+        const cacheKey = `${userId}-${page}`;
+
+        if (!cache.has(cacheKey)) {
+          const promise = getPaginatedChats(userId, page, 20).then((result) => ({
+            items: result.items.filter((item) => item.urlId && item.description),
+            hasMore: result.hasMore,
+          }));
+          cache.set(cacheKey, promise);
+        }
+
+        return cache.get(cacheKey)!;
+      },
+      invalidate: () => {
+        cache.clear();
+        setCacheKey((prev) => prev + 1);
+        setPage(0);
+        setHasMore(true);
+      },
+    };
+  }, [cacheKey]); // Reset cache when cacheKey changes
+
+  const loadMore = useCallback(async () => {
+    if (!userId || !hasMore || isLoadingMore) {
+      return;
     }
-  }, [userId]);
+
+    setIsLoadingMore(true);
+
+    try {
+      const result = await entriesCache.get(userId, page + 1);
+      setList((prev) => [...prev, ...result.items]);
+      setHasMore(result.hasMore);
+      setPage((prev) => prev + 1);
+    } catch (error) {
+      console.error('Failed to load more chats:', error);
+      toast.error('Failed to load more chats');
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [userId, page, hasMore, isLoadingMore, entriesCache]);
+
+  // Scroll event handler
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+
+    if (!container) {
+      return;
+    }
+
+    const handleScroll = (): void => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+
+      if (scrollHeight - scrollTop - clientHeight < 50) {
+        // 50px before bottom
+        void loadMore();
+        return;
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll);
+
+    // eslint-disable-next-line consistent-return
+    return (): void => {
+      container?.removeEventListener('scroll', handleScroll);
+    };
+  }, [loadMore]);
+
+  const loadEntries = useCallback(async () => {
+    if (!userId) {
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const result = await entriesCache.get(userId, 0);
+      setList(result.items);
+      setHasMore(result.hasMore);
+      setPage(0);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load chats';
+      toast.error(message);
+      entriesCache.invalidate();
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userId, entriesCache]);
+
+  // Invalidate cache when new chat is created
+  useEffect(() => {
+    const handleNewChat = () => {
+      entriesCache.invalidate();
+    };
+
+    window.addEventListener('newChatCreated', handleNewChat);
+
+    return () => window.removeEventListener('newChatCreated', handleNewChat);
+  }, [entriesCache]);
 
   const deleteItem = useCallback(
     (event: React.UIEvent, item: ChatHistoryItem) => {
@@ -88,6 +192,7 @@ export const Menu = () => {
       if (userId) {
         deleteById(userId, item.id)
           .then(() => {
+            entriesCache.invalidate(); // Invalidate cache on deletion
             loadEntries();
 
             if (chatId.get() === item.id) {
@@ -101,7 +206,7 @@ export const Menu = () => {
           });
       }
     },
-    [userId],
+    [userId, entriesCache, loadEntries],
   );
 
   const closeDialog = () => {
@@ -142,7 +247,8 @@ export const Menu = () => {
 
   const handleDuplicate = async (id: string) => {
     await duplicateCurrentChat(id);
-    loadEntries(); // Reload the list after duplication
+    entriesCache.invalidate(); // Invalidate cache after duplication
+    loadEntries();
   };
 
   return (
@@ -174,8 +280,13 @@ export const Menu = () => {
             />
           </div>
         </div>
-        <div className="text-bolt-elements-textPrimary font-medium pl-6 pr-5 my-2">Your Chats</div>
-        <div className="flex-1 overflow-auto pl-4 pr-5 pb-5">
+        <div className="flex items-center gap-2 pl-6 pr-5 my-2">
+          <span className="text-bolt-elements-textPrimary font-medium">Your Chats</span>
+          {isLoading && (
+            <div className="w-4 h-4 border-2 border-bolt-elements-borderColor border-t-bolt-elements-textPrimary rounded-full animate-spin" />
+          )}
+        </div>
+        <div ref={scrollContainerRef} className="flex-1 overflow-auto pl-4 pr-5 pb-5">
           {filteredList.length === 0 && (
             <div className="pl-2 text-bolt-elements-textTertiary">
               {list.length === 0 ? 'No previous conversations' : 'No matches found'}
@@ -228,6 +339,11 @@ export const Menu = () => {
               )}
             </Dialog>
           </DialogRoot>
+          {isLoadingMore && (
+            <div className="flex justify-center py-4">
+              <div className="w-6 h-6 border-2 border-bolt-elements-borderColor border-t-bolt-elements-textPrimary rounded-full animate-spin" />
+            </div>
+          )}
         </div>
         <div className="flex items-center justify-between gap-2 border-t border-bolt-elements-borderColor p-4">
           <SettingsButton onClick={() => setIsSettingsOpen(true)} />

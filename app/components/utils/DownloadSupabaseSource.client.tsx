@@ -33,6 +33,7 @@ export default function DownloadSupabaseSource({ uploaderUserId, sourceId }: Pro
           <p className={styles.message}>Processing your files. Please wait...</p>
         </>
       )}
+      {!userId && <h1 className={styles.title}>{'Please Sign In'}</h1>}
     </div>
   );
 }
