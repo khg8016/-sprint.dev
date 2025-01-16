@@ -3,6 +3,7 @@ import useViewport from '~/lib/hooks';
 import { chatStore } from '~/lib/stores/chat';
 import { workbenchStore } from '~/lib/stores/workbench';
 import { classNames } from '~/utils/classNames';
+import { ConnectSupabaseButton } from '~/components/settings/ConnectSupabaseButton';
 
 interface HeaderActionButtonsProps {}
 
@@ -15,7 +16,8 @@ export function HeaderActionButtons({}: HeaderActionButtonsProps) {
   const canHideChat = showWorkbench || !showChat;
 
   return (
-    <div className="flex">
+    <div className="flex items-center gap-3">
+      <ConnectSupabaseButton />
       <div className="flex border border-bolt-elements-borderColor rounded-md overflow-hidden">
         <Button
           active={showChat}

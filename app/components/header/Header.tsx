@@ -21,20 +21,20 @@ export function Header() {
           <div>Sprint DEV</div>
         </a>
       </div>
-      {chat.started && (
-        <>
-          <span className="flex-1 px-4 truncate text-center text-bolt-elements-textPrimary">
-            <ClientOnly>{() => <ChatDescription />}</ClientOnly>
-          </span>
-          <ClientOnly>
-            {() => (
+      <ClientOnly>
+        {() =>
+          chat.started && (
+            <>
+              <span className="flex-1 px-4 truncate text-center text-bolt-elements-textPrimary">
+                <ChatDescription />
+              </span>
               <div className="mr-1">
                 <HeaderActionButtons />
               </div>
-            )}
-          </ClientOnly>
-        </>
-      )}
+            </>
+          )
+        }
+      </ClientOnly>
     </header>
   );
 }
