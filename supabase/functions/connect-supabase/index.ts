@@ -34,20 +34,11 @@ router.get('/connect-supabase', (ctx) => {
 
 router.get('/connect-supabase/login', async (ctx) => {
   const url = new URL(ctx.request.url);
-  const userId = url.searchParams.get('user_id');
-
-  if (!userId) {
-    ctx.response.status = 400;
-    ctx.response.body = { error: 'Missing user ID' };
-    return;
-  }
-
   // Construct the URL for the authorization redirect and get a PKCE codeVerifier
   const { uri: baseUri, codeVerifier } = await oauth2Client.code.getAuthorizationUri();
 
   // Add user_id to the redirect URI
   const uri = new URL(baseUri);
-  uri.searchParams.append('user_id', userId);
 
   // Generate session ID
   const sessionId = crypto.randomUUID();
@@ -57,7 +48,6 @@ router.get('/connect-supabase/login', async (ctx) => {
     session_id: sessionId,
     code_verifier: codeVerifier,
     created_at: new Date().toISOString(),
-    user_id: userId,
   });
 
   if (error) {
@@ -75,13 +65,13 @@ router.get('/connect-supabase/login', async (ctx) => {
 router.get('/connect-supabase/oauth2/callback', async (ctx) => {
   const url = new URL(ctx.request.url);
   const code = url.searchParams.get('code');
-  const userId = url.searchParams.get('user_id');
+  // const userId = url.searchParams.get('user_id');
 
   // 1. 쿠키에서 sessionId 가져오기
   const cookies = ctx.request.headers.get('cookie');
   const sessionId = cookies?.match(/oauth_session=([^;]*)/)?.[1];
 
-  if (!code || !sessionId || !userId) {
+  if (!code || !sessionId) {
     ctx.response.status = 400;
     ctx.response.body = { error: 'Missing authorization code, session, or user ID' };
     return;

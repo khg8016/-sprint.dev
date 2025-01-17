@@ -2,14 +2,17 @@ import { json, type LoaderFunctionArgs } from '@remix-run/cloudflare';
 import { useLoaderData, useNavigate } from '@remix-run/react';
 import { useEffect, useCallback } from 'react';
 import { useSupabaseAuth } from '~/lib/hooks/useSupabaseAuth';
-import { supabase } from '~/lib/persistence/supabaseClient';
 
-interface SupabaseTokenResponse {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
-  refresh_token: string;
-}
+// import { supabase } from '~/lib/persistence/supabaseClient';
+
+/*
+ * interface SupabaseTokenResponse {
+ *   access_token: string;
+ *   token_type: string;
+ *   expires_in: number;
+ *   refresh_token: string;
+ * }
+ */
 
 // type LoaderResponse = { success: true; data: SupabaseTokenResponse } | { success: false; error: string };
 
@@ -28,8 +31,16 @@ export default function SupabaseCallback() {
   const navigate = useNavigate();
   const getOauthToken = useCallback(async (userId: string) => {
     try {
+      if (!userId) {
+        throw new Error('Failed to get user: ' + 'User not found');
+      }
+
       const response = await fetch(
-        'https://cxwwczwjdevjxnfcxsja.supabase.co/functions/v1/connect-supabase/oauth2/callback?code=' + code,
+        import.meta.env.VITE_SUPABASE_FUNCTION_URL +
+          '/connect-supabase/oauth2/callback?code=' +
+          code +
+          '&user_id=' +
+          userId,
         {
           headers: {
             Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
@@ -42,29 +53,30 @@ export default function SupabaseCallback() {
         throw new Error('Failed to fetch login URL');
       }
 
-      const tokens = (await response.json()) as SupabaseTokenResponse;
-
-      if (!userId) {
-        throw new Error('Failed to get user: ' + 'User not found');
-      }
+      // const tokens = (await response.json()) as SupabaseTokenResponse;
 
       // Calculate expires_at by adding expires_in seconds to current time
-      const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
 
-      const { error } = await supabase.from('supabase_tokens').insert([
-        {
-          user_id: userId,
-          access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token,
-          expires_in: tokens.expires_in,
-          token_type: tokens.token_type,
-          expires_at: expiresAt.toISOString(),
-        },
-      ]);
+      // const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
 
-      if (error) {
-        throw new Error('Failed to save tokens: ' + error.message);
-      }
+      /*
+       * const { error } = await supabase.from('supabase_tokens').insert([
+       *   {
+       *     user_id: userId,
+       *     access_token: tokens.access_token,
+       *     refresh_token: tokens.refresh_token,
+       *     expires_in: tokens.expires_in,
+       *     token_type: tokens.token_type,
+       *     expires_at: expiresAt.toISOString(),
+       *   },
+       * ]);
+       */
+
+      /*
+       * if (error) {
+       *   throw new Error('Failed to save tokens: ' + error.message);
+       * }
+       */
 
       // Navigate back to specific chat page after successful connection
       navigate(chatId ? `/chat/${chatId}` : '/chat');

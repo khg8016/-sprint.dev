@@ -1,26 +1,8 @@
-import { useEffect, useState } from 'react';
-
 interface GoToSupabaseProjectButtonProps {
   projectId: string;
 }
 
 export function GoToSupabaseProjectButton({ projectId }: GoToSupabaseProjectButtonProps) {
-  const [prefersDark, setPrefersDark] = useState(false);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    setPrefersDark(mediaQuery.matches);
-
-    const handler = (e: MediaQueryListEvent) => setPrefersDark(e.matches);
-    mediaQuery.addEventListener('change', handler);
-
-    return () => mediaQuery.removeEventListener('change', handler);
-  }, []);
-
-  const imageUrl = prefersDark
-    ? '/assets/connect-supabase/goto-project-dark.svg'
-    : '/assets/connect-supabase/goto-project-light.svg';
-
   const handleClick = () => {
     window.open(`https://supabase.com/dashboard/project/${projectId}`, '_blank');
   };
@@ -28,10 +10,11 @@ export function GoToSupabaseProjectButton({ projectId }: GoToSupabaseProjectButt
   return (
     <button
       onClick={handleClick}
-      className="h-6 opacity-100 hover:opacity-80 transition-opacity"
+      className="h-8 px-4 rounded-md border border-[#3ECF8E] bg-[#3ECF8E]/10 hover:bg-[#3ECF8E]/20 transition-all flex items-center gap-2 text-[#3ECF8E] text-sm"
       aria-label="Go to Supabase Project"
     >
-      <img src={imageUrl} alt="Go to Supabase Project" className="h-full" />
+      <img src="/assets/brand-assets/supabase-logo-icon.svg" alt="" className="h-4 w-4" />
+      <span>Open Dashboard</span>
     </button>
   );
 }

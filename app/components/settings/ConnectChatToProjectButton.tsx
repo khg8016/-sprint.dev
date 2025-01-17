@@ -46,12 +46,12 @@ export function ConnectChatToProjectButton({ chatId }: ConnectChatToProjectButto
     <>
       <button
         onClick={handleConnect}
-        className="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+        className="inline-flex items-center justify-center rounded-md border border-[#3ECF8E] bg-[#3ECF8E]/10 px-4 py-2 text-sm font-medium text-[#3ECF8E] hover:bg-[#3ECF8E]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed gap-2"
         disabled={isLoading || !userId || !chatId}
       >
         {isLoading ? (
           <svg
-            className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+            className="animate-spin h-5 w-5 text-[#3ECF8E]"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
@@ -63,8 +63,10 @@ export function ConnectChatToProjectButton({ chatId }: ConnectChatToProjectButto
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
             />
           </svg>
-        ) : null}
-        Connect to Supabase Project
+        ) : (
+          <img src="/assets/brand-assets/supabase-logo-icon.svg" alt="" className="h-5 w-5" />
+        )}
+        <span>Connect to Project</span>
       </button>
 
       <SupabaseProjectModal isOpen={showModal} onClose={() => setShowModal(false)} chatId={chatId} />
