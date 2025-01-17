@@ -1,6 +1,8 @@
 import { json, type LoaderFunctionArgs } from '@remix-run/cloudflare';
-import { useLoaderData } from '@remix-run/react';
-import { useEffect } from 'react';
+import { useLoaderData, useNavigate } from '@remix-run/react';
+import { useEffect, useCallback } from 'react';
+import { useSupabaseAuth } from '~/lib/hooks/useSupabaseAuth';
+import { supabase } from '~/lib/persistence/supabaseClient';
 
 interface SupabaseTokenResponse {
   access_token: string;
@@ -9,72 +11,76 @@ interface SupabaseTokenResponse {
   refresh_token: string;
 }
 
-type LoaderResponse = { success: true; data: SupabaseTokenResponse } | { success: false; error: string };
+// type LoaderResponse = { success: true; data: SupabaseTokenResponse } | { success: false; error: string };
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const code = url.searchParams.get('code');
+  const state = url.searchParams.get('state'); // Get chat ID from state parameter
 
-  // 쿠키에서 sessionId 가져오기
-  const sessionId = request.headers.get('cookie')?.match(/oauth_session=([^;]*)/)?.[1];
-
-  if (!code || !sessionId) {
-    return json({ success: false, error: 'Missing parameters' });
-  }
-
-  // 1. sessionId를 사용하여 Supabase DB에서 codeVerifier 조회
-  const { data: session } = await supabase
-    .from('oauth_sessions')
-    .select('code_verifier')
-    .eq('session_id', sessionId)
-    .single();
-
-  if (!session) {
-    return json<LoaderResponse>({ success: false, error: 'Session expired or invalid' });
-  }
-
-  // 2. codeVerifier 사용하여 Supabase 토큰 교환
-  const tokenResponse = await fetch('https://api.supabase.com/v1/oauth/token', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      Authorization: `Basic ${btoa(`${process.env.SUPA_CLIENT_ID}:${process.env.SUPA_CLIENT_SECRET}`)}`,
-    },
-    body: new URLSearchParams({
-      grant_type: 'authorization_code',
-      code,
-      code_verifier: session.code_verifier,
-    }),
-  });
-
-  const tokens = await tokenResponse.json();
-
-  if (!tokenResponse.ok) {
-    return json<LoaderResponse>({ success: false, error: 'OAuth token exchange failed' });
-  }
-
-  return json<LoaderResponse>({ success: true, data: tokens });
+  return json({ code: code || '', chatId: state || '' });
 }
 
 export default function SupabaseCallback() {
-  const loaderData = useLoaderData<typeof loader>();
+  const { code, chatId } = useLoaderData<typeof loader>();
+
+  const { userId, isLoading } = useSupabaseAuth();
+  const navigate = useNavigate();
+  const getOauthToken = useCallback(async (userId: string) => {
+    try {
+      const response = await fetch(
+        'https://cxwwczwjdevjxnfcxsja.supabase.co/functions/v1/connect-supabase/oauth2/callback?code=' + code,
+        {
+          headers: {
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+          credentials: 'include',
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch login URL');
+      }
+
+      const tokens = (await response.json()) as SupabaseTokenResponse;
+
+      if (!userId) {
+        throw new Error('Failed to get user: ' + 'User not found');
+      }
+
+      // Calculate expires_at by adding expires_in seconds to current time
+      const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
+
+      const { error } = await supabase.from('supabase_tokens').insert([
+        {
+          user_id: userId,
+          access_token: tokens.access_token,
+          refresh_token: tokens.refresh_token,
+          expires_in: tokens.expires_in,
+          token_type: tokens.token_type,
+          expires_at: expiresAt.toISOString(),
+        },
+      ]);
+
+      if (error) {
+        throw new Error('Failed to save tokens: ' + error.message);
+      }
+
+      // Navigate back to specific chat page after successful connection
+      navigate(chatId ? `/chat/${chatId}` : '/chat');
+    } catch (error) {
+      console.error('Failed to connect:', error);
+
+      // Show error message to user
+      alert('Failed to connect to Supabase. Please try again.');
+    }
+  }, []);
 
   useEffect(() => {
-    console.log(loaderData);
-
-    if (loaderData.success && loaderData.data) {
-      window.opener?.postMessage({ type: 'SUPABASE_OAUTH_CALLBACK', data: loaderData.data }, window.location.origin);
-      window.close();
+    if (!isLoading && userId) {
+      getOauthToken(userId);
     }
-  }, [loaderData]);
-
-  if (!loaderData.success) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen">
-        <div className="text-red-500">Failed to connect: {loaderData.error}</div>
-      </div>
-    );
-  }
+  }, [isLoading, userId]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen">

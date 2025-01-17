@@ -1,3 +1,5 @@
+/* eslint-disable */
+// @ts-nocheck
 import { Application, Router } from 'https://deno.land/x/oak@v11.1.0/mod.ts';
 import { CookieStore, Session } from 'https://deno.land/x/oak_sessions@v4.1.9/mod.ts';
 import { OAuth2Client } from 'https://deno.land/x/oauth2_client@v1.0.2/mod.ts';
@@ -122,19 +124,15 @@ router.get('/connect-supabase/oauth2/callback', async (ctx) => {
   }).then((res) => res.json());
   console.log('tokens', tokens);
 
-  // TODO: Make sure to store the tokens in your DB for future use.
+  /*
+   * Use the access token to make an authenticated API request.
+   * const supaManagementClient = new SupabaseManagementAPI({
+   *   accessToken: tokens.accessToken ?? tokens.access_token,
+   * });
+   * const projects = await supaManagementClient.getProjects();
+   */
 
-  // Use the access token to make an authenticated API request.
-  const supaManagementClient = new SupabaseManagementAPI({
-    accessToken: tokens.accessToken ?? tokens.access_token,
-  });
-  const projects = await supaManagementClient.getProjects();
-
-  ctx.response.body = `Hello, these are your projects: \n ${JSON.stringify(
-    projects?.map((p) => ({ id: p.id, name: p.name })),
-    null,
-    2,
-  )}!`;
+  ctx.response.body = tokens;
 });
 
 const app = new Application<AppState>();

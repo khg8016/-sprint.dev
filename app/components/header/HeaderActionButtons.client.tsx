@@ -4,20 +4,67 @@ import { chatStore } from '~/lib/stores/chat';
 import { workbenchStore } from '~/lib/stores/workbench';
 import { classNames } from '~/utils/classNames';
 import { ConnectSupabaseButton } from '~/components/settings/ConnectSupabaseButton';
+import { GoToSupabaseProjectButton } from '~/components/settings/GoToSupabaseProjectButton';
+import { ConnectChatToProjectButton } from '~/components/settings/ConnectChatToProjectButton';
+import { useSupabaseAuth } from '~/lib/hooks/useSupabaseAuth';
+import { supabase } from '~/lib/persistence/supabaseClient';
+import { useEffect, useState } from 'react';
 
 interface HeaderActionButtonsProps {}
 
 export function HeaderActionButtons({}: HeaderActionButtonsProps) {
   const showWorkbench = useStore(workbenchStore.showWorkbench);
   const { showChat } = useStore(chatStore);
-
+  const chat = useStore(chatStore);
   const isSmallViewport = useViewport(1024);
-
   const canHideChat = showWorkbench || !showChat;
+
+  const { userId } = useSupabaseAuth();
+  const [chatProject, setChatProject] = useState<{ id: string } | null>(null);
+  const [hasSupabaseToken, setHasSupabaseToken] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Check if user has Supabase token
+  useEffect(() => {
+    if (userId) {
+      supabase
+        .from('supabase_tokens')
+        .select('id')
+        .eq('user_id', userId)
+        .limit(1)
+        .then(({ data }) => {
+          setHasSupabaseToken(!!data?.length);
+        });
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    if (userId && chat.id) {
+      supabase
+        .from('chat_supabase_connections')
+        .select('project_id')
+        .eq('chat_id', chat.id)
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .single()
+        .then(({ data }) => {
+          setChatProject(data ? { id: data.project_id } : null);
+          setIsLoading(false);
+        });
+    } else {
+      setIsLoading(false);
+    }
+  }, [userId, chat.id]);
 
   return (
     <div className="flex items-center gap-3">
-      <ConnectSupabaseButton />
+      {userId && !hasSupabaseToken && chat.id ? (
+        <ConnectSupabaseButton chatId={chat.id} />
+      ) : !isLoading && chatProject ? (
+        <GoToSupabaseProjectButton projectId={chatProject.id} />
+      ) : chat.id && hasSupabaseToken ? (
+        <ConnectChatToProjectButton chatId={chat.id} />
+      ) : null}
       <div className="flex border border-bolt-elements-borderColor rounded-md overflow-hidden">
         <Button
           active={showChat}

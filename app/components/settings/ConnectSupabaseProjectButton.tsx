@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 
-interface ConnectSupabaseButtonProps {
-  chatId: string;
+interface ProjectConnectionResponse {
+  redirectUrl?: string;
 }
 
-export function ConnectSupabaseButton({ chatId }: ConnectSupabaseButtonProps) {
+export function ConnectSupabaseProjectButton() {
   const [prefersDark, setPrefersDark] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -19,8 +19,8 @@ export function ConnectSupabaseButton({ chatId }: ConnectSupabaseButtonProps) {
   }, []);
 
   const imageUrl = prefersDark
-    ? '/assets/connect-supabase/connect-supabase-dark.svg'
-    : '/assets/connect-supabase/connect-supabase-light.svg';
+    ? '/assets/connect-supabase/connect-project-dark.svg'
+    : '/assets/connect-supabase/connect-project-light.svg';
 
   const handleConnect = async () => {
     if (isLoading) {
@@ -30,35 +30,41 @@ export function ConnectSupabaseButton({ chatId }: ConnectSupabaseButtonProps) {
     try {
       setIsLoading(true);
 
-      interface LoginResponse {
-        redirectUrl?: string;
-      }
+      /*
+       * TODO: Implement project connection logic
+       * 1. For new project:
+       *    - Create Supabase project via API
+       *    - Set up database tables
+       *    - Configure auth settings
+       *    - Link chat history
+       * 2. For existing project:
+       *    - Validate project URL and API key
+       *    - Test connection
+       *    - Link chat history
+       */
 
-      fetch('https://cxwwczwjdevjxnfcxsja.supabase.co/functions/v1/connect-supabase/login', {
+      fetch('https://cxwwczwjdevjxnfcxsja.supabase.co/functions/v1/connect-supabase/project', {
         headers: {
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
-        credentials: 'include', // ⬅️ 쿠키를 포함하여 요청
+        credentials: 'include',
       })
-        .then((response) => response.json() as Promise<LoginResponse>)
+        .then((response) => response.json() as Promise<ProjectConnectionResponse>)
         .then((data) => {
           console.log(data);
 
           if (data.redirectUrl) {
-            // Add chat ID as state parameter
-            const url = new URL(data.redirectUrl!);
-            url.searchParams.append('state', chatId);
-
             setTimeout(() => {
-              window.location.href = url.toString(); // 🚀 쿠키가 저장될 시간을 확보한 후 이동
-            }, 500); // 500ms (0.5초) 정도 대기
+              window.location.href = data.redirectUrl as string;
+            }, 500);
           }
         })
         .catch((error) => {
-          console.error('Failed to fetch login URL', error);
+          console.error('Failed to connect project:', error);
         });
     } catch (error) {
       console.error('Failed to connect:', error);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -68,9 +74,9 @@ export function ConnectSupabaseButton({ chatId }: ConnectSupabaseButtonProps) {
       onClick={handleConnect}
       className="h-6 opacity-100 hover:opacity-80 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
       disabled={isLoading}
-      aria-label="Connect Supabase"
+      aria-label="Connect Supabase Project"
     >
-      <img src={imageUrl} alt="Connect Supabase" className="h-full" />
+      <img src={imageUrl} alt="Connect Supabase Project" className="h-full" />
     </button>
   );
 }
