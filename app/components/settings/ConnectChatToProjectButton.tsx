@@ -1,116 +1,73 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
+import { useSupabaseAuth } from '~/lib/hooks/useSupabaseAuth';
+import { supabase } from '~/lib/persistence/supabaseClient';
+import { SupabaseProjectModal } from './SupabaseProjectModal';
 
 interface ConnectChatToProjectButtonProps {
   chatId: string;
-  onConnect?: (projectId: string) => void;
 }
 
-export function ConnectChatToProjectButton({ chatId, onConnect }: ConnectChatToProjectButtonProps) {
-  console.log(chatId);
-  console.log(onConnect);
+export function ConnectChatToProjectButton({ chatId }: ConnectChatToProjectButtonProps) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const { userId } = useSupabaseAuth();
 
-  const [prefersDark, setPrefersDark] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const [projectType, setProjectType] = useState<'new' | 'existing'>('new');
+  const handleConnect = useCallback(async () => {
+    if (isLoading || !userId || !chatId) {
+      return;
+    }
 
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    setPrefersDark(mediaQuery.matches);
+    try {
+      setIsLoading(true);
 
-    const handler = (e: MediaQueryListEvent) => setPrefersDark(e.matches);
-    mediaQuery.addEventListener('change', handler);
+      // 현재 채팅방에 연결된 프로젝트가 있는지 확인
+      const { data: existingConnection } = await supabase
+        .from('chat_supabase_connections')
+        .select('*')
+        .eq('chat_id', chatId)
+        .eq('is_active', true)
+        .single();
 
-    return () => mediaQuery.removeEventListener('change', handler);
-  }, []);
+      if (existingConnection) {
+        // 이미 연결된 프로젝트가 있다면 비활성화
+        await supabase.from('chat_supabase_connections').update({ is_active: false }).eq('id', existingConnection.id);
+      }
 
-  const imageUrl = prefersDark
-    ? '/assets/connect-supabase/connect-chat-dark.svg'
-    : '/assets/connect-supabase/connect-chat-light.svg';
+      // 프로젝트 선택 모달 표시
+      setShowModal(true);
+    } catch (error) {
+      console.error('Failed to check existing connection:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userId, chatId, isLoading]);
 
   return (
     <>
       <button
-        onClick={() => setIsOpen(true)}
-        className="h-6 opacity-100 hover:opacity-80 transition-opacity"
-        aria-label="Connect Chat to Supabase Project"
+        onClick={handleConnect}
+        className="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled={isLoading || !userId || !chatId}
       >
-        <img src={imageUrl} alt="Connect Chat to Supabase Project" className="h-full" />
+        {isLoading ? (
+          <svg
+            className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
+          </svg>
+        ) : null}
+        Connect to Supabase Project
       </button>
 
-      {isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-bolt-background rounded-lg shadow-lg p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold text-bolt-elements-textPrimary mb-4">Connect Chat to Supabase Project</h2>
-
-            <div className="space-y-4">
-              <div className="flex space-x-4">
-                <button
-                  className={`flex-1 p-3 rounded-lg border ${
-                    projectType === 'new'
-                      ? 'border-bolt-elements-textPrimary text-bolt-elements-textPrimary'
-                      : 'border-bolt-elements-textSecondary text-bolt-elements-textSecondary'
-                  }`}
-                  onClick={() => setProjectType('new')}
-                >
-                  Create New Project
-                </button>
-                <button
-                  className={`flex-1 p-3 rounded-lg border ${
-                    projectType === 'existing'
-                      ? 'border-bolt-elements-textPrimary text-bolt-elements-textPrimary'
-                      : 'border-bolt-elements-textSecondary text-bolt-elements-textSecondary'
-                  }`}
-                  onClick={() => setProjectType('existing')}
-                >
-                  Use Existing Project
-                </button>
-              </div>
-
-              {projectType === 'new' && (
-                <div className="text-bolt-elements-textSecondary">
-                  <p>This will:</p>
-                  <ul className="list-disc pl-5 space-y-2">
-                    <li>Create a new Supabase project</li>
-                    <li>Set up necessary database tables</li>
-                    <li>Configure authentication settings</li>
-                    <li>Link this chat history</li>
-                  </ul>
-                </div>
-              )}
-
-              {projectType === 'existing' && (
-                <div className="text-bolt-elements-textSecondary">
-                  <p>Select a project from your Supabase account to connect with this chat.</p>
-                  <p className="mt-2">The project will be configured with:</p>
-                  <ul className="list-disc pl-5 space-y-2">
-                    <li>Required database tables</li>
-                    <li>Authentication settings</li>
-                    <li>This chat history</li>
-                  </ul>
-                </div>
-              )}
-
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  className="px-4 py-2 rounded text-bolt-elements-textSecondary hover:text-bolt-elements-textPrimary"
-                  onClick={() => setIsOpen(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="px-4 py-2 rounded bg-bolt-elements-textPrimary text-white hover:opacity-90"
-                  onClick={() => {
-                    // TODO: Implement project creation/selection
-                    setIsOpen(false);
-                  }}
-                >
-                  {projectType === 'new' ? 'Create & Connect' : 'Connect'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <SupabaseProjectModal isOpen={showModal} onClose={() => setShowModal(false)} chatId={chatId} />
     </>
   );
 }

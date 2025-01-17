@@ -8,7 +8,7 @@ import { GoToSupabaseProjectButton } from '~/components/settings/GoToSupabasePro
 import { ConnectChatToProjectButton } from '~/components/settings/ConnectChatToProjectButton';
 import { useSupabaseAuth } from '~/lib/hooks/useSupabaseAuth';
 import { supabase } from '~/lib/persistence/supabaseClient';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 interface HeaderActionButtonsProps {}
 
@@ -38,23 +38,40 @@ export function HeaderActionButtons({}: HeaderActionButtonsProps) {
     }
   }, [userId]);
 
-  useEffect(() => {
-    if (userId && chat.id) {
-      supabase
-        .from('chat_supabase_connections')
-        .select('project_id')
-        .eq('chat_id', chat.id)
-        .eq('user_id', userId)
-        .eq('is_active', true)
-        .single()
-        .then(({ data }) => {
-          setChatProject(data ? { id: data.project_id } : null);
-          setIsLoading(false);
-        });
-    } else {
+  const loadChatProject = useCallback(async () => {
+    if (!userId || !chat.id) {
       setIsLoading(false);
+      return;
     }
+
+    const { data } = await supabase
+      .from('chat_supabase_connections')
+      .select('project_id')
+      .eq('chat_id', chat.id)
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .single();
+
+    setChatProject(data ? { id: data.project_id } : null);
+    setIsLoading(false);
   }, [userId, chat.id]);
+
+  useEffect(() => {
+    loadChatProject();
+  }, [loadChatProject]);
+
+  // Listen for project connection updates
+  useEffect(() => {
+    const handleProjectConnected = () => {
+      loadChatProject();
+    };
+
+    window.addEventListener('supabaseProjectConnected', handleProjectConnected);
+
+    return () => {
+      window.removeEventListener('supabaseProjectConnected', handleProjectConnected);
+    };
+  }, [loadChatProject]);
 
   return (
     <div className="flex items-center gap-3">

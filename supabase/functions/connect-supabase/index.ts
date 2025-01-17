@@ -33,106 +33,188 @@ router.get('/connect-supabase', (ctx) => {
 });
 
 router.get('/connect-supabase/login', async (ctx) => {
-  // Construct the URL for the authorization redirect and get a PKCE codeVerifier.
-  const { uri, codeVerifier } = await oauth2Client.code.getAuthorizationUri();
-  console.log(uri.toString());
+  const url = new URL(ctx.request.url);
+  const userId = url.searchParams.get('user_id');
 
-  // Store both the state and codeVerifier in the user session.
+  if (!userId) {
+    ctx.response.status = 400;
+    ctx.response.body = { error: 'Missing user ID' };
+    return;
+  }
 
-  // ctx.state.session.flash('codeVerifier', codeVerifier);
+  // Construct the URL for the authorization redirect and get a PKCE codeVerifier
+  const { uri: baseUri, codeVerifier } = await oauth2Client.code.getAuthorizationUri();
 
-  // Redirect the user to the authorization endpoint.
+  // Add user_id to the redirect URI
+  const uri = new URL(baseUri);
+  uri.searchParams.append('user_id', userId);
 
-  // ctx.response.redirect(uri);
-
-  // 1. sessionId 생성 (UUID 사용)
+  // Generate session ID
   const sessionId = crypto.randomUUID();
 
-  // 2. Supabase DB에 `sessionId`와 `codeVerifier` 저장
-  const { error } = await supabase
-    .from('oauth_sessions')
-    .insert({ session_id: sessionId, code_verifier: codeVerifier, created_at: new Date().toISOString() });
+  // Store session and code verifier
+  const { error } = await supabase.from('oauth_sessions').insert({
+    session_id: sessionId,
+    code_verifier: codeVerifier,
+    created_at: new Date().toISOString(),
+    user_id: userId,
+  });
 
   if (error) {
     console.error('Failed to store session:', error);
     ctx.response.status = 500;
     ctx.response.body = { error: 'Internal Server Error' };
-
     return;
   }
 
-  // 3. sessionId를 쿠키로 설정 (Secure, HttpOnly)
+  // Set session cookie
   ctx.response.headers.set('Set-Cookie', `oauth_session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=None`);
 
   ctx.response.body = { redirectUrl: uri.toString() };
 });
 router.get('/connect-supabase/oauth2/callback', async (ctx) => {
-  /*
-   * Make sure the codeVerifier is present for the user's session.
-   * const codeVerifier = ctx.state.session.get('codeVerifier') as string;
-   * console.log('codeVerifier', codeVerifier);
-   */
-
-  /*
-   * if (!codeVerifier) {
-   *   throw new Error('No codeVerifier!');
-   * }
-   */
-
   const url = new URL(ctx.request.url);
   const code = url.searchParams.get('code');
+  const userId = url.searchParams.get('user_id');
 
   // 1. 쿠키에서 sessionId 가져오기
   const cookies = ctx.request.headers.get('cookie');
   const sessionId = cookies?.match(/oauth_session=([^;]*)/)?.[1];
 
-  if (!code || !sessionId) {
+  if (!code || !sessionId || !userId) {
     ctx.response.status = 400;
-    ctx.response.body = { error: 'Missing authorization code or session' };
-
+    ctx.response.body = { error: 'Missing authorization code, session, or user ID' };
     return;
   }
 
   // 2. Supabase DB에서 sessionId로 codeVerifier 조회
-  const { data: session, error } = await supabase
+  const { data: session, error: sessionError } = await supabase
     .from('oauth_sessions')
     .select('code_verifier')
     .eq('session_id', sessionId)
     .single();
 
-  if (!session || error) {
+  if (!session || sessionError) {
     ctx.response.status = 400;
     ctx.response.body = { error: 'Invalid or expired session' };
-
     return;
   }
 
-  // Exchange the authorization code for an access token.
-  const tokens = await fetch(config.tokenUri, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      Accept: 'application/json',
-      Authorization: `Basic ${btoa(`${config.clientId}:${config.clientSecret}`)}`,
-    },
-    body: new URLSearchParams({
-      grant_type: 'authorization_code',
-      code: ctx.request.url.searchParams.get('code') || '',
-      redirect_uri: config.redirectUri,
-      code_verifier: session.code_verifier,
-    }),
-  }).then((res) => res.json());
-  console.log('tokens', tokens);
+  try {
+    // Exchange the authorization code for an access token
+    const tokens = await fetch(config.tokenUri, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Accept: 'application/json',
+        Authorization: `Basic ${btoa(`${config.clientId}:${config.clientSecret}`)}`,
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: code,
+        redirect_uri: config.redirectUri,
+        code_verifier: session.code_verifier,
+      }),
+    }).then((res) => res.json());
 
-  /*
-   * Use the access token to make an authenticated API request.
-   * const supaManagementClient = new SupabaseManagementAPI({
-   *   accessToken: tokens.accessToken ?? tokens.access_token,
-   * });
-   * const projects = await supaManagementClient.getProjects();
-   */
+    if (tokens.error) {
+      throw new Error(tokens.error_description || tokens.error);
+    }
 
-  ctx.response.body = tokens;
+    // Calculate expires_at timestamp
+    const expiresAt = new Date();
+    expiresAt.setSeconds(expiresAt.getSeconds() + tokens.expires_in);
+
+    // Store tokens in database
+    const { error: insertError } = await supabase.from('supabase_tokens').insert({
+      user_id: userId,
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      expires_in: tokens.expires_in,
+      token_type: tokens.token_type,
+      expires_at: expiresAt.toISOString(),
+    });
+
+    if (insertError) {
+      throw new Error(`Failed to store tokens: ${insertError.message}`);
+    }
+
+    ctx.response.body = { success: true };
+  } catch (error) {
+    console.error('Token exchange error:', error);
+    ctx.response.status = 500;
+    ctx.response.body = { error: error.message };
+  }
+});
+
+// Add refresh token endpoint
+router.post('/connect-supabase/refresh', async (ctx) => {
+  try {
+    const userId = await ctx.request.body().value.then((body) => body.user_id);
+
+    if (!userId) {
+      ctx.response.status = 400;
+      ctx.response.body = { error: 'Missing user ID' };
+      return;
+    }
+
+    // Get current tokens
+    const { data: currentTokens, error: fetchError } = await supabase
+      .from('supabase_tokens')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (!currentTokens || fetchError) {
+      ctx.response.status = 404;
+      ctx.response.body = { error: 'No tokens found for user' };
+      return;
+    }
+
+    // Exchange refresh token for new access token
+    const response = await fetch(config.tokenUri, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Accept: 'application/json',
+        Authorization: `Basic ${btoa(`${config.clientId}:${config.clientSecret}`)}`,
+      },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: currentTokens.refresh_token,
+      }),
+    }).then((res) => res.json());
+
+    if (response.error) {
+      throw new Error(response.error_description || response.error);
+    }
+
+    // Calculate new expires_at
+    const expiresAt = new Date();
+    expiresAt.setSeconds(expiresAt.getSeconds() + response.expires_in);
+
+    // Update tokens in database
+    const { error: updateError } = await supabase
+      .from('supabase_tokens')
+      .update({
+        access_token: response.access_token,
+        refresh_token: response.refresh_token,
+        expires_in: response.expires_in,
+        token_type: response.token_type,
+        expires_at: expiresAt.toISOString(),
+      })
+      .eq('user_id', userId);
+
+    if (updateError) {
+      throw new Error(`Failed to update tokens: ${updateError.message}`);
+    }
+
+    ctx.response.body = { success: true };
+  } catch (error) {
+    console.error('Token refresh error:', error);
+    ctx.response.status = 500;
+    ctx.response.body = { error: error.message };
+  }
 });
 
 const app = new Application<AppState>();
