@@ -137,7 +137,6 @@ router.get('/connect-supabase/oauth2/callback', async (ctx) => {
   }
 });
 
-// Add refresh token endpoint
 router.post('/connect-supabase/refresh', async (ctx) => {
   try {
     const userId = await ctx.request.body().value.then((body) => body.user_id);

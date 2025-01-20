@@ -1,6 +1,13 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '~/lib/persistence/supabaseClient';
-import type { Project, CreateProjectParams, SupabaseToken, ErrorResponse, Organization } from '~/types/supabase';
+import type {
+  Project,
+  CreateProjectParams,
+  SupabaseToken,
+  ErrorResponse,
+  Organization,
+  ProjectApiKey,
+} from '~/types/supabase';
 
 const SUPABASE_FUNCTION_URL =
   import.meta.env.VITE_SUPABASE_FUNCTION_URL || 'https://cxwwczwjdevjxnfcxsja.supabase.co/functions/v1';
@@ -169,11 +176,44 @@ export function useSupabaseManagement(userId: string | undefined) {
     }
   }, [ensureValidToken]);
 
+  // 프로젝트 API 키 조회
+  const getProjectApiKeys = useCallback(
+    async (projectRef: string): Promise<ProjectApiKey[]> => {
+      setLoading(true);
+
+      try {
+        const accessToken = await ensureValidToken();
+        const response = await fetch(`${SUPABASE_FUNCTION_URL}/projects_api_keys/${projectRef}`, {
+          headers: {
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'x-access-token': accessToken,
+          },
+        });
+
+        if (!response.ok) {
+          const errorData = (await response.json()) as ErrorResponse;
+          throw new Error(errorData.error || 'Failed to fetch project API keys');
+        }
+
+        const apiKeys = (await response.json()) as ProjectApiKey[];
+
+        return apiKeys;
+      } catch (err) {
+        setError(err as Error);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [ensureValidToken],
+  );
+
   return {
     loading,
     error,
     createProject,
     getProjects,
     getOrganizations,
+    getProjectApiKeys,
   };
 }

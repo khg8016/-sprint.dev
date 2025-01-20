@@ -31,3 +31,11 @@ export interface Organization {
   name: string;
   created_at: string;
 }
+
+export interface ProjectApiKey {
+  name: string;
+  api_key: string;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}

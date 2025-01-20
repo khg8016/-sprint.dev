@@ -14,7 +14,8 @@ interface SupabaseProjectModalProps {
 
 export function SupabaseProjectModal({ isOpen, onClose, chatId }: SupabaseProjectModalProps) {
   const { userId } = useSupabaseAuth();
-  const { loading, error, getProjects, createProject, getOrganizations } = useSupabaseManagement(userId);
+  const { loading, error, getProjects, createProject, getOrganizations, getProjectApiKeys } =
+    useSupabaseManagement(userId);
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -94,6 +95,15 @@ export function SupabaseProjectModal({ isOpen, onClose, chatId }: SupabaseProjec
 
   const connectProjectToChat = async (project: Project) => {
     try {
+      // Get project API keys
+      const apiKeys = await getProjectApiKeys(project.id);
+      const anonKey = apiKeys.find((key) => key.name === 'anon')?.api_key;
+      const serviceRoleKey = apiKeys.find((key) => key.name === 'service_role')?.api_key;
+
+      if (!anonKey || !serviceRoleKey) {
+        throw new Error('Failed to retrieve project API keys');
+      }
+
       // Deactivate any existing connections first
       await supabase
         .from('chat_supabase_connections')
@@ -113,6 +123,8 @@ export function SupabaseProjectModal({ isOpen, onClose, chatId }: SupabaseProjec
           project_created_at: project.created_at,
           project_status: project.status,
           is_active: true,
+          anon_key: anonKey,
+          service_role_key: serviceRoleKey,
         },
       ]);
 
