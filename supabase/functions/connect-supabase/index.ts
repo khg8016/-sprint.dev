@@ -7,7 +7,7 @@ import { SupabaseManagementAPI } from 'https://esm.sh/supabase-management-js@0.1
 import { oakCors } from 'https://deno.land/x/cors@v1.2.2/mod.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const SPRINT_DEV_URL = 'https://99ff-121-134-241-230.ngrok-free.app';
+const SPRINT_DEV_URL = Deno.env.get('SPRINT_DEV_URL')!;
 
 const config = {
   clientId: Deno.env.get('SUPA_CONNECT_CLIENT_ID')!,
@@ -178,10 +178,15 @@ router.post('/connect-supabase/refresh', async (ctx) => {
     if (response.error) {
       throw new Error(response.error_description || response.error);
     }
-
+    console.log(response)
     // Calculate new expires_at
     const expiresAt = new Date();
-    expiresAt.setSeconds(expiresAt.getSeconds() + response.expires_in);
+    // Ensure expires_in is a valid number
+    const expiresIn = parseInt(response.expires_in, 10);
+    if (isNaN(expiresIn)) {
+      throw new Error('Invalid expires_in value received from token endpoint');
+    }
+    expiresAt.setSeconds(expiresAt.getSeconds() + expiresIn);
 
     // Update tokens in database
     const { error: updateError } = await supabase

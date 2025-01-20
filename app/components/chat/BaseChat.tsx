@@ -118,8 +118,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     },
     ref,
   ) => {
-    console.log(chatStarted);
-
     const TEXTAREA_MAX_HEIGHT = chatStarted ? 400 : 200;
 
     // const [apiKeys, setApiKeys] = useState<Record<string, string>>(getApiKeysFromCookies());

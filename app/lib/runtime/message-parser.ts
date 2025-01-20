@@ -1,4 +1,12 @@
-import type { ActionType, BoltAction, BoltActionData, FileAction, ShellAction } from '~/types/actions';
+import type {
+  ActionType,
+  BoltAction,
+  BoltActionData,
+  FileAction,
+  ShellAction,
+  SupabaseAction,
+  SupabaseSubType,
+} from '~/types/actions';
 import type { BoltArtifactData } from '~/types/artifact';
 import { createScopedLogger } from '~/utils/logger';
 import { unreachable } from '~/utils/unreachable';
@@ -66,6 +74,7 @@ function cleanoutMarkdownSyntax(content: string) {
 }
 export class StreamingMessageParser {
   #messages = new Map<string, MessageState>();
+  #sqlFiles = new Map<string, string>();
 
   constructor(private _options: StreamingMessageParserOptions = {}) {}
 
@@ -107,33 +116,44 @@ export class StreamingMessageParser {
             let content = currentAction.content.trim();
 
             if ('type' in currentAction && currentAction.type === 'file') {
-              // Remove markdown code block syntax if present and file is not markdown
-              if (!currentAction.filePath.endsWith('.md')) {
+              // 기존 file 타입 처리 로직
+              if (currentAction.filePath.endsWith('.md')) {
                 content = cleanoutMarkdownSyntax(content);
               }
 
               content += '\n';
+              currentAction.content = content;
+
+              // .sql 파일이면 내용을 저장
+              if (currentAction.filePath.endsWith('.sql')) {
+                this.#sqlFiles.set(currentAction.filePath, content);
+              }
+            } else if ('type' in currentAction && currentAction.type === 'supabase') {
+              if (currentAction.subType === 'sql') {
+                const referencedFilePath = content;
+                const sql = this.#sqlFiles.get(referencedFilePath);
+
+                if (sql) {
+                  content = JSON.stringify({ path: referencedFilePath, sql });
+
+                  // 여기서 추가로 supabase sql 액션에 대한 처리 로직을 구현할 수 있음
+                }
+              }
+
+              // supabase 다른 subtype에 대한 처리도 필요 시 이곳에 추가
+              currentAction.content = content;
             }
 
-            currentAction.content = content;
-
+            // onActionClose 콜백 호출 등 공통 로직
             this._options.callbacks?.onActionClose?.({
               artifactId: currentArtifact.id,
               messageId,
-
-              /**
-               * We decrement the id because it's been incremented already
-               * when `onActionOpen` was emitted to make sure the ids are
-               * the same.
-               */
               actionId: String(state.actionId - 1),
-
               action: currentAction as BoltAction,
             });
 
             state.insideAction = false;
             state.currentAction = { content: '' };
-
             i = closeIndex + ARTIFACT_ACTION_TAG_CLOSE.length;
           } else {
             if ('type' in currentAction && currentAction.type === 'file') {
@@ -153,6 +173,20 @@ export class StreamingMessageParser {
                   filePath: currentAction.filePath,
                 },
               });
+            } else if ('type' in currentAction && currentAction.type === 'supabase') {
+              // const content = input.slice(i);
+              /*
+               * this._options.callbacks?.onActionStream?.({
+               *   artifactId: currentArtifact.id,
+               *   messageId,
+               *   actionId: String(state.actionId - 1),
+               *   action: {
+               *     ...(currentAction as SupabaseAction),
+               *     content,
+               *     subType: currentAction.subType,
+               *   },
+               * });
+               */
             }
 
             break;
@@ -295,6 +329,14 @@ export class StreamingMessageParser {
       }
 
       (actionAttributes as FileAction).filePath = filePath;
+    } else if (actionType === 'supabase') {
+      const subType = this.#extractAttribute(actionTag, 'subType') as SupabaseSubType;
+
+      if (!subType) {
+        logger.debug('subType not specified');
+      }
+
+      (actionAttributes as SupabaseAction).subType = subType;
     } else if (!['shell', 'start'].includes(actionType)) {
       logger.warn(`Unknown action type '${actionType}'`);
     }

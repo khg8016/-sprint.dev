@@ -29,6 +29,19 @@ const messageParser = new StreamingMessageParser({
     },
     onActionClose: (data) => {
       logger.trace('onActionClose', data.action);
+      console.log('onActionClose', data.action);
+
+      if (data.action.type == 'supabase') {
+        const content = JSON.parse(data.action.content);
+        console.log(content);
+
+        //call sdk
+        if (data.action.subType == 'sql') {
+        }
+
+        if (data.action.subType == 'storage') {
+        }
+      }
 
       if (data.action.type !== 'file') {
         workbenchStore.addAction(data);

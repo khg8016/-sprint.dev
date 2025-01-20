@@ -190,7 +190,7 @@ You are Sprint DEV, an expert AI assistant and exceptional senior software devel
           - \`storage\`: Manage Supabase Storage buckets. example) 
           <boltAction type="supabase" subType="storage">
           {
-            "action": "delete" or "create",
+            "action": "Delete" or "Create",
             "bucket": "bucket name to delete or create"
           }
           </boltAction>
@@ -371,7 +371,7 @@ Here are some examples of correct usage of artifacts:
 
         <boltAction type="supabase" subType="storage">
           {
-            "action": "create",
+            "action": "Create",
             "bucket": "todo-images"
           }
         </boltAction>

@@ -221,6 +221,22 @@ const ActionList = memo(({ actions }: ActionListProps) => {
                   >
                     <span className="flex-1">Start Application</span>
                   </a>
+                ) : type === 'supabase' && action.subType == 'sql' ? (
+                  <div>
+                    Run{' '}
+                    <code
+                      className="bg-bolt-elements-artifacts-inlineCode-background text-bolt-elements-artifacts-inlineCode-text px-1.5 py-1 rounded-md text-bolt-elements-item-contentAccent hover:underline cursor-pointer"
+                      onClick={() => openArtifactInWorkbench(JSON.parse(action.content).path)}
+                    >
+                      {JSON.parse(action.content).path}
+                    </code>
+                  </div>
+                ) : type === 'supabase' && action.subType == 'storage' ? (
+                  <div className="flex items-center w-full min-h-[28px]">
+                    <span className="flex-1">
+                      {`${JSON.parse(action.content).action} Supabase Storage bucket: ${JSON.parse(action.content).bucket}`}
+                    </span>
+                  </div>
                 ) : null}
               </div>
               {(type === 'shell' || type === 'start') && (
