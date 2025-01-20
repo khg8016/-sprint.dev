@@ -120,6 +120,10 @@ export const Workbench = memo(({ chatStarted, isStreaming }: WorkspaceProps) => 
     }
   }, []);
 
+  useEffect(() => {
+    workbenchStore.showWorkbench.set(true);
+  }, []);
+
   return (
     chatStarted && (
       <motion.div

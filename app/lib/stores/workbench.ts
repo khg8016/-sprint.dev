@@ -312,6 +312,24 @@ export class WorkbenchStore {
       this.addToExecutionQueue(() => this._runAction(data, isStreaming));
     }
   }
+
+  setEnvFile(content: string) {
+    this._setEnvFile(content);
+  }
+
+  async _setEnvFile(content: string) {
+    const wc = await webcontainer;
+
+    // const fullPath = nodePath.join(wc.workdir, '.env');
+
+    try {
+      const result = await wc.fs.writeFile('.env', content);
+
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  }
   async _runAction(data: ActionCallbackData, isStreaming: boolean = false) {
     const { messageId } = data;
 

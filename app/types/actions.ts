@@ -17,7 +17,7 @@ export interface StartAction extends BaseAction {
   type: 'start';
 }
 
-export type SupabaseSubType = 'storage' | 'sql';
+export type SupabaseSubType = 'sql';
 
 export interface SupabaseAction extends BaseAction {
   type: 'supabase';

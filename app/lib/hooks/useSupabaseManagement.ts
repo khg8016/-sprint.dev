@@ -18,6 +18,8 @@ export function useSupabaseManagement(userId: string | undefined) {
 
   // 토큰 가져오기 (DB에서)
   const fetchToken = useCallback(async () => {
+    console.log('fetchToken', userId);
+
     if (!userId) {
       return null;
     }
@@ -208,6 +210,41 @@ export function useSupabaseManagement(userId: string | undefined) {
     [ensureValidToken],
   );
 
+  // SQL 쿼리 실행
+  const executeQuery = useCallback(
+    async (projectRef: string, query: string) => {
+      setLoading(true);
+
+      try {
+        const accessToken = await ensureValidToken();
+        const response = await fetch(`${SUPABASE_FUNCTION_URL}/database_query/${projectRef}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'x-access-token': accessToken,
+          },
+          body: JSON.stringify({ query }),
+        });
+
+        if (!response.ok) {
+          const errorData = (await response.json()) as ErrorResponse;
+          throw new Error(errorData.error || 'Failed to execute query');
+        }
+
+        const result = await response.json();
+
+        return result;
+      } catch (err) {
+        setError(err as Error);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [ensureValidToken],
+  );
+
   return {
     loading,
     error,
@@ -215,5 +252,6 @@ export function useSupabaseManagement(userId: string | undefined) {
     getProjects,
     getOrganizations,
     getProjectApiKeys,
+    executeQuery,
   };
 }

@@ -32,12 +32,20 @@ export interface ActionCallbackData {
 export type ArtifactCallback = (data: ArtifactCallbackData) => void;
 export type ActionCallback = (data: ActionCallbackData) => void;
 
+export interface OnActionCloseCallbackData extends ActionCallbackData {
+  userId?: string;
+  chatId?: string;
+  excuteQueryFunc?: (projectRef: string, query: string) => Promise<unknown>;
+}
+
+export type OnActionCloseCallback = (data: OnActionCloseCallbackData) => void;
+
 export interface ParserCallbacks {
   onArtifactOpen?: ArtifactCallback;
   onArtifactClose?: ArtifactCallback;
   onActionOpen?: ActionCallback;
   onActionStream?: ActionCallback;
-  onActionClose?: ActionCallback;
+  onActionClose?: OnActionCloseCallback;
 }
 
 interface ElementFactoryProps {
@@ -64,17 +72,19 @@ function cleanoutMarkdownSyntax(content: string) {
   const codeBlockRegex = /^\s*```\w*\n([\s\S]*?)\n\s*```\s*$/;
   const match = content.match(codeBlockRegex);
 
-  // console.log('matching', !!match, content);
-
   if (match) {
-    return match[1]; // Remove common leading 4-space indent
+    return match[1];
   } else {
     return content;
   }
 }
+
 export class StreamingMessageParser {
   #messages = new Map<string, MessageState>();
   #sqlFiles = new Map<string, string>();
+  #userId: string = '';
+  #chatId: string = '';
+  #excuteQueryFunc: ((projectRef: string, query: string) => Promise<unknown>) | undefined = undefined;
 
   constructor(private _options: StreamingMessageParserOptions = {}) {}
 
@@ -116,7 +126,6 @@ export class StreamingMessageParser {
             let content = currentAction.content.trim();
 
             if ('type' in currentAction && currentAction.type === 'file') {
-              // 기존 file 타입 처리 로직
               if (currentAction.filePath.endsWith('.md')) {
                 content = cleanoutMarkdownSyntax(content);
               }
@@ -124,7 +133,6 @@ export class StreamingMessageParser {
               content += '\n';
               currentAction.content = content;
 
-              // .sql 파일이면 내용을 저장
               if (currentAction.filePath.endsWith('.sql')) {
                 this.#sqlFiles.set(currentAction.filePath, content);
               }
@@ -135,14 +143,14 @@ export class StreamingMessageParser {
 
                 if (sql) {
                   content = JSON.stringify({ path: referencedFilePath, sql });
-
-                  // 여기서 추가로 supabase sql 액션에 대한 처리 로직을 구현할 수 있음
                 }
               }
 
-              // supabase 다른 subtype에 대한 처리도 필요 시 이곳에 추가
               currentAction.content = content;
             }
+
+            console.log('onActionClose userId:', this.#userId);
+            console.log('onActionClose chatId:', this.#chatId);
 
             // onActionClose 콜백 호출 등 공통 로직
             this._options.callbacks?.onActionClose?.({
@@ -150,6 +158,9 @@ export class StreamingMessageParser {
               messageId,
               actionId: String(state.actionId - 1),
               action: currentAction as BoltAction,
+              userId: this.#userId,
+              chatId: this.#chatId,
+              excuteQueryFunc: this.#excuteQueryFunc,
             });
 
             state.insideAction = false;
@@ -173,20 +184,6 @@ export class StreamingMessageParser {
                   filePath: currentAction.filePath,
                 },
               });
-            } else if ('type' in currentAction && currentAction.type === 'supabase') {
-              // const content = input.slice(i);
-              /*
-               * this._options.callbacks?.onActionStream?.({
-               *   artifactId: currentArtifact.id,
-               *   messageId,
-               *   actionId: String(state.actionId - 1),
-               *   action: {
-               *     ...(currentAction as SupabaseAction),
-               *     content,
-               *     subType: currentAction.subType,
-               *   },
-               * });
-               */
             }
 
             break;
@@ -307,8 +304,26 @@ export class StreamingMessageParser {
     return output;
   }
 
+  setUserId(userId: string) {
+    this.#userId = userId;
+  }
+
+  setExecuteQuery(excuteQueryFunc: (projectRef: string, query: string) => Promise<unknown>) {
+    this.#excuteQueryFunc = excuteQueryFunc;
+  }
+  setChatId(chatId: string) {
+    this.#chatId = chatId;
+  }
+
   reset() {
+    const userId = this.#userId;
+    const chatId = this.#chatId;
+
     this.#messages.clear();
+    this.#sqlFiles.clear();
+
+    this.#userId = userId;
+    this.#chatId = chatId;
   }
 
   #parseActionTag(input: string, actionOpenIndex: number, actionEndIndex: number) {

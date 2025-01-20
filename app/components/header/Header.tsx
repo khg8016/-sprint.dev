@@ -7,7 +7,6 @@ import { ChatDescription } from '~/lib/persistence/ChatDescription.client';
 
 export function Header() {
   const chat = useStore(chatStore);
-  console.log(chat);
 
   return (
     <header

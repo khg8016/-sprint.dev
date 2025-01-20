@@ -231,12 +231,6 @@ const ActionList = memo(({ actions }: ActionListProps) => {
                       {JSON.parse(action.content).path}
                     </code>
                   </div>
-                ) : type === 'supabase' && action.subType == 'storage' ? (
-                  <div className="flex items-center w-full min-h-[28px]">
-                    <span className="flex-1">
-                      {`${JSON.parse(action.content).action} Supabase Storage bucket: ${JSON.parse(action.content).bucket}`}
-                    </span>
-                  </div>
                 ) : null}
               </div>
               {(type === 'shell' || type === 'start') && (
