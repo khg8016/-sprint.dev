@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from '@remix-run/react';
 import { signIn, signUp } from '~/lib/persistence/auth';
 import type { AuthSession } from '@supabase/supabase-js';
+import styles from '~/components/auth/AuthPage.module.scss';
 
 export const AuthButtons: React.FC = () => {
   const navigate = useNavigate();
@@ -9,53 +10,86 @@ export const AuthButtons: React.FC = () => {
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setError(null);
+    setIsLoading(true);
 
-    let session: AuthSession | null = null;
+    try {
+      let session: AuthSession | null = null;
 
-    if (isSignUp) {
-      session = await signUp(email, password);
-    } else {
-      session = await signIn(email, password);
-    }
+      if (isSignUp) {
+        session = await signUp(email, password);
+      } else {
+        session = await signIn(email, password);
+      }
 
-    if (session) {
-      // Successful authentication, redirect to main page
-      navigate('/');
-    } else {
-      // Handle authentication error
-      setError('Authentication failed. Please check your credentials and try again.');
+      if (session) {
+        navigate('/');
+      } else {
+        setError('Authentication failed. Please check your credentials and try again.');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-        {error && <div className="text-red-500 text-sm mb-2">{error}</div>}
+    <form onSubmit={handleSubmit} className={styles.form}>
+      <div className={`${styles.inputGroup} ${error ? styles.error : ''}`}>
         <input
           type="email"
-          placeholder="Email"
+          placeholder="Email address"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="px-2 py-1 border border-gray-300 rounded"
+          required
+          aria-label="Email address"
+          aria-invalid={error ? 'true' : 'false'}
+          autoComplete="email"
+          disabled={isLoading}
         />
+      </div>
+
+      <div className={`${styles.inputGroup} ${error ? styles.error : ''}`}>
         <input
           type="password"
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="px-2 py-1 border border-gray-300 rounded"
+          required
+          aria-label="Password"
+          aria-invalid={error ? 'true' : 'false'}
+          autoComplete={isSignUp ? 'new-password' : 'current-password'}
+          disabled={isLoading}
+          minLength={6}
         />
-        <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded">
-          {isSignUp ? 'Sign Up' : 'Sign In'}
-        </button>
-      </form>
+      </div>
 
-      <button onClick={() => setIsSignUp(!isSignUp)} className="mt-2 text-sm text-blue-500 hover:underline">
-        {isSignUp ? 'Already have an account?' : 'Create an account'}
+      {error && (
+        <div className={styles.errorMessage} role="alert">
+          {error}
+        </div>
+      )}
+
+      <button type="submit" className={styles.submitButton} disabled={isLoading} aria-busy={isLoading}>
+        {isLoading ? 'Please wait...' : isSignUp ? 'Create Account' : 'Sign In'}
       </button>
-    </div>
+
+      <button
+        type="button"
+        onClick={() => {
+          setIsSignUp(!isSignUp);
+          setError(null);
+        }}
+        className={styles.toggleButton}
+        disabled={isLoading}
+      >
+        {isSignUp ? 'Already have an account? Sign in' : 'Need an account? Sign up'}
+      </button>
+    </form>
   );
 };
