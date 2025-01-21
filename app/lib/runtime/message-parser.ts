@@ -149,9 +149,6 @@ export class StreamingMessageParser {
               currentAction.content = content;
             }
 
-            console.log('onActionClose userId:', this.#userId);
-            console.log('onActionClose chatId:', this.#chatId);
-
             // onActionClose 콜백 호출 등 공통 로직
             this._options.callbacks?.onActionClose?.({
               artifactId: currentArtifact.id,
