@@ -137,7 +137,7 @@ export const ChatImpl = memo(
     });
     const [provider, setProvider] = useState(() => {
       // const savedProvider = Cookies.get('selectedProvider');
-      const savedProvider = import.meta.env.VITE_PROVIER || 'OpenAI';
+      const savedProvider = import.meta.env.VITE_PROVIDER || 'OpenAI';
       return (PROVIDER_LIST.find((p) => p.name === savedProvider) || DEFAULT_PROVIDER) as ProviderInfo;
     });
 

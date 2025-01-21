@@ -33,8 +33,6 @@ export function ConnectSupabaseButton({ chatId }: ConnectSupabaseButtonProps) {
       interface LoginResponse {
         redirectUrl?: string;
       }
-      console.log(import.meta.env.VITE_SUPABASE_FUNCTION_URL);
-      console.log(import.meta.env.VITE_SUPABASE_ANON_KEY);
       fetch(import.meta.env.VITE_SUPABASE_FUNCTION_URL + '/connect-supabase/login', {
         headers: {
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
