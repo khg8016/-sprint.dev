@@ -5,7 +5,6 @@ import { useSupabaseAuth } from '~/lib/hooks/useSupabaseAuth';
 import { supabase } from '~/lib/persistence/supabaseClient';
 
 import type { Project, Organization } from '~/types/supabase';
-import { workbenchStore } from '~/lib/stores/workbench';
 
 interface SupabaseProjectModalProps {
   isOpen: boolean;
@@ -105,8 +104,10 @@ export function SupabaseProjectModal({ isOpen, onClose, chatId }: SupabaseProjec
         throw new Error('Failed to retrieve project API keys');
       }
 
-      workbenchStore.setEnvFile(`VITE_SUPABASE_ANON_KEY=${anonKey}
-VITE_SUPABASE_URL=https://${project.id}.supabase.co`);
+      /*
+       *       workbenchStore.setEnvFile(`VITE_SUPABASE_ANON_KEY=${anonKey}
+       * VITE_SUPABASE_URL=https://${project.id}.supabase.co`);
+       */
 
       // Deactivate any existing connections first
       await supabase
@@ -127,6 +128,8 @@ VITE_SUPABASE_URL=https://${project.id}.supabase.co`);
           project_created_at: project.created_at,
           project_status: project.status,
           is_active: true,
+          anon_key: anonKey,
+          service_role_key: serviceRoleKey,
         },
       ]);
 

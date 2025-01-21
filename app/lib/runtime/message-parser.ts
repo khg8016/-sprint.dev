@@ -1,12 +1,4 @@
-import type {
-  ActionType,
-  BoltAction,
-  BoltActionData,
-  FileAction,
-  ShellAction,
-  SupabaseAction,
-  SupabaseSubType,
-} from '~/types/actions';
+import type { ActionType, BoltAction, BoltActionData, FileAction, ShellAction } from '~/types/actions';
 import type { BoltArtifactData } from '~/types/artifact';
 import { createScopedLogger } from '~/utils/logger';
 import { unreachable } from '~/utils/unreachable';
@@ -45,7 +37,7 @@ export interface ParserCallbacks {
   onArtifactClose?: ArtifactCallback;
   onActionOpen?: ActionCallback;
   onActionStream?: ActionCallback;
-  onActionClose?: OnActionCloseCallback;
+  onActionClose?: ActionCallback;
 }
 
 interface ElementFactoryProps {
@@ -81,10 +73,14 @@ function cleanoutMarkdownSyntax(content: string) {
 
 export class StreamingMessageParser {
   #messages = new Map<string, MessageState>();
-  #sqlFiles = new Map<string, string>();
-  #userId: string = '';
-  #chatId: string = '';
-  #excuteQueryFunc: ((projectRef: string, query: string) => Promise<unknown>) | undefined = undefined;
+
+  // #sqlFiles = new Map<string, string>();
+
+  // #userId: string = '';
+
+  // #chatId: string = '';
+
+  // #excuteQueryFunc: ((projectRef: string, query: string) => Promise<unknown>) | undefined = undefined;
 
   constructor(private _options: StreamingMessageParserOptions = {}) {}
 
@@ -133,21 +129,31 @@ export class StreamingMessageParser {
               content += '\n';
               currentAction.content = content;
 
-              if (currentAction.filePath.endsWith('.sql')) {
-                this.#sqlFiles.set(currentAction.filePath, content);
-              }
-            } else if ('type' in currentAction && currentAction.type === 'supabase') {
-              if (currentAction.subType === 'sql') {
-                const referencedFilePath = content;
-                const sql = this.#sqlFiles.get(referencedFilePath);
-
-                if (sql) {
-                  content = JSON.stringify({ path: referencedFilePath, sql });
-                }
-              }
-
-              currentAction.content = content;
+              /*
+               * if (currentAction.filePath.endsWith('.sql')) {
+               *   this.#sqlFiles.set(currentAction.filePath, content);
+               * }
+               */
             }
+
+            /*
+             * else if ('type' in currentAction && currentAction.type === 'supabase') {
+             *   if (currentAction.subType === 'sql') {
+             *     const referencedFilePath = content;
+             *     const sql = this.#sqlFiles.get(referencedFilePath);
+             */
+
+            /*
+             *     if (sql) {
+             *       content = JSON.stringify({ path: referencedFilePath, sql });
+             *     }
+             *   }
+             */
+
+            /*
+             *   currentAction.content = content;
+             * }
+             */
 
             // onActionClose 콜백 호출 등 공통 로직
             this._options.callbacks?.onActionClose?.({
@@ -155,9 +161,12 @@ export class StreamingMessageParser {
               messageId,
               actionId: String(state.actionId - 1),
               action: currentAction as BoltAction,
-              userId: this.#userId,
-              chatId: this.#chatId,
-              excuteQueryFunc: this.#excuteQueryFunc,
+
+              /*
+               * userId: this.#userId,
+               * chatId: this.#chatId,
+               * excuteQueryFunc: this.#excuteQueryFunc,
+               */
             });
 
             state.insideAction = false;
@@ -301,26 +310,35 @@ export class StreamingMessageParser {
     return output;
   }
 
-  setUserId(userId: string) {
-    this.#userId = userId;
-  }
+  /*
+   * setUserId(userId: string) {
+   *   this.#userId = userId;
+   * }
+   */
 
-  setExecuteQuery(excuteQueryFunc: (projectRef: string, query: string) => Promise<unknown>) {
-    this.#excuteQueryFunc = excuteQueryFunc;
-  }
-  setChatId(chatId: string) {
-    this.#chatId = chatId;
-  }
+  /*
+   * setExecuteQuery(excuteQueryFunc: (projectRef: string, query: string) => Promise<unknown>) {
+   *   this.#excuteQueryFunc = excuteQueryFunc;
+   * }
+   * setChatId(chatId: string) {
+   *   this.#chatId = chatId;
+   * }
+   */
 
   reset() {
-    const userId = this.#userId;
-    const chatId = this.#chatId;
+    /*
+     * const userId = this.#userId;
+     * const chatId = this.#chatId;
+     */
 
     this.#messages.clear();
-    this.#sqlFiles.clear();
 
-    this.#userId = userId;
-    this.#chatId = chatId;
+    // this.#sqlFiles.clear();
+
+    /*
+     * this.#userId = userId;
+     * this.#chatId = chatId;
+     */
   }
 
   #parseActionTag(input: string, actionOpenIndex: number, actionEndIndex: number) {
@@ -341,15 +359,22 @@ export class StreamingMessageParser {
       }
 
       (actionAttributes as FileAction).filePath = filePath;
-    } else if (actionType === 'supabase') {
-      const subType = this.#extractAttribute(actionTag, 'subType') as SupabaseSubType;
-
-      if (!subType) {
-        logger.debug('subType not specified');
-      }
-
-      (actionAttributes as SupabaseAction).subType = subType;
     } else if (!['shell', 'start'].includes(actionType)) {
+      /*
+       * else if (actionType === 'supabase') {
+       *   const subType = this.#extractAttribute(actionTag, 'subType') as SupabaseSubType;
+       */
+
+      /*
+       *   if (!subType) {
+       *     logger.debug('subType not specified');
+       *   }
+       */
+
+      /*
+       *   (actionAttributes as SupabaseAction).subType = subType;
+       * }
+       */
       logger.warn(`Unknown action type '${actionType}'`);
     }
 

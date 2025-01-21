@@ -3,7 +3,7 @@ import { toast } from 'react-toastify';
 import { ImportFolderButton } from '~/components/chat/ImportFolderButton';
 
 type ChatData = {
-  messages?: Message[]; // Standard Sprint DEV format
+  messages?: Message[]; // Standard Sprint.dev format
   description?: string; // Optional description
 };
 

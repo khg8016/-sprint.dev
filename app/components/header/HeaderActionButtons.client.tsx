@@ -9,6 +9,7 @@ import { ConnectChatToProjectButton } from '~/components/settings/ConnectChatToP
 import { useSupabaseAuth } from '~/lib/hooks/useSupabaseAuth';
 import { supabase } from '~/lib/persistence/supabaseClient';
 import { useEffect, useState, useCallback } from 'react';
+import { useSupabaseManagement } from '~/lib/hooks/useSupabaseManagement';
 
 interface HeaderActionButtonsProps {}
 
@@ -72,6 +73,19 @@ export function HeaderActionButtons({}: HeaderActionButtonsProps) {
       window.removeEventListener('supabaseProjectConnected', handleProjectConnected);
     };
   }, [loadChatProject]);
+
+  const { getProjectApiKeys } = useSupabaseManagement(userId);
+  useEffect(() => {
+    // Get project API keys
+    if (chatProject) {
+      getProjectApiKeys(chatProject.id).then((apiKeys) => {
+        const anonKey = apiKeys.find((key) => key.name === 'anon')?.api_key;
+
+        workbenchStore.setEnvFile(`VITE_SUPABASE_ANON_KEY=${anonKey}
+VITE_SUPABASE_URL=https://${chatProject.id}.supabase.co`);
+      });
+    }
+  }, [chatProject]);
 
   return (
     <div className="flex items-center gap-3">

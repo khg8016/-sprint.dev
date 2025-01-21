@@ -2,12 +2,17 @@ import { useStore } from '@nanostores/react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { computed } from 'nanostores';
 import { memo, useEffect, useRef, useState } from 'react';
+import { useSupabaseManagement } from '~/lib/hooks/useSupabaseManagement';
+import { supabase } from '~/lib/persistence/supabaseClient';
 import { createHighlighter, type BundledLanguage, type BundledTheme, type HighlighterGeneric } from 'shiki';
 import type { ActionState } from '~/lib/runtime/action-runner';
 import { workbenchStore } from '~/lib/stores/workbench';
 import { classNames } from '~/utils/classNames';
 import { cubicEasingFn } from '~/utils/easings';
 import { WORK_DIR } from '~/utils/constants';
+import type { FileAction } from '~/types/actions';
+import { useSupabaseAuth } from '~/lib/hooks/useSupabaseAuth';
+import { chatStore } from '~/lib/stores/chat';
 
 const highlighterOptions = {
   langs: ['shell'],
@@ -26,9 +31,15 @@ interface ArtifactProps {
 }
 
 export const Artifact = memo(({ messageId }: ArtifactProps) => {
+  const { userId } = useSupabaseAuth();
+  const { id: chatId } = useStore(chatStore);
+  const { executeQuery } = useSupabaseManagement(userId);
   const userToggledActions = useRef(false);
   const [showActions, setShowActions] = useState(false);
   const [allActionFinished, setAllActionFinished] = useState(false);
+  const [noActiveConnection, setNoActiveConnection] = useState(false);
+  const [successfulQueries, setSuccessfulQueries] = useState<Record<string, boolean>>({});
+  const [queryError, setQueryError] = useState<string | null>(null);
 
   const artifacts = useStore(workbenchStore.artifacts);
   const artifact = artifacts[messageId];
@@ -36,6 +47,13 @@ export const Artifact = memo(({ messageId }: ArtifactProps) => {
   const actions = useStore(
     computed(artifact.runner.actions, (actions) => {
       return Object.values(actions);
+    }),
+  );
+  const migrationActions = useStore(
+    computed(artifact.runner.actions, (actions) => {
+      return Object.values(actions).filter(
+        (action) => action.type === 'file' && action.filePath.endsWith('.sql'),
+      ) as FileAction[];
     }),
   );
 
@@ -116,6 +134,115 @@ export const Artifact = memo(({ messageId }: ArtifactProps) => {
 
             <div className="p-5 text-left bg-bolt-elements-actions-background">
               <ActionList actions={actions} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {artifact.type !== 'bundled' && showActions && migrationActions.length > 0 && (
+          <motion.div
+            className="actions"
+            initial={{ height: 0 }}
+            animate={{ height: 'auto' }}
+            exit={{ height: '0px' }}
+            transition={{ duration: 0.15 }}
+          >
+            <div className="bg-bolt-elements-artifacts-borderColor h-[1px]" />
+
+            <div className="p-5 text-left bg-bolt-elements-actions-background">
+              {noActiveConnection && (
+                <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600">
+                  <div className="flex items-center gap-2">
+                    <div className="i-ph:warning-circle-duotone text-lg" />
+                    <span className="text-sm">Please connect the Supabase project</span>
+                  </div>
+                </div>
+              )}
+              <div className="space-y-3">
+                {migrationActions.map((action, index) => {
+                  const migrationPath = action.filePath;
+                  const fileName = migrationPath.split('/').pop();
+
+                  return (
+                    <div
+                      key={index}
+                      className="flex flex-col gap-2 p-3 rounded-lg border border-bolt-elements-artifacts-borderColor bg-bolt-elements-artifacts-background"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="i-ph:code-duotone text-bolt-elements-textSecondary text-lg" />
+                        <span className="flex-1 font-medium text-sm text-bolt-elements-textPrimary">{fileName}</span>
+                      </div>
+
+                      <code
+                        className="bg-bolt-elements-artifacts-inlineCode-background text-bolt-elements-artifacts-inlineCode-text px-1.5 py-1 rounded-md text-bolt-elements-item-contentAccent hover:underline cursor-pointer"
+                        onClick={() => openArtifactInWorkbench(migrationPath)}
+                      >
+                        {migrationPath}
+                      </code>
+                      <div className="flex flex-col gap-2">
+                        {successfulQueries[action.filePath] && (
+                          <div className="p-2 rounded-md bg-emerald-500/10 text-emerald-500 text-xs">
+                            The migration file has been successfully executed.
+                          </div>
+                        )}
+                        {queryError && !successfulQueries[action.filePath] && (
+                          <div className="p-2 rounded-md bg-red-500/10 text-red-500 text-xs">{queryError}</div>
+                        )}
+                        <div className="flex gap-3">
+                          {!successfulQueries[action.filePath] && (
+                            <button
+                              className={classNames(
+                                'flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-md transition-all duration-150 border',
+                                'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/90 hover:text-white hover:scale-[1.02] active:scale-[0.98] border-emerald-500/20',
+                              )}
+                              onClick={async () => {
+                                if (successfulQueries[action.filePath]) {
+                                  return;
+                                }
+
+                                setQueryError(null);
+
+                                try {
+                                  const { data: project, error: chatSupabaseConnectionError } = await supabase
+                                    .from('chat_supabase_connections')
+                                    .select('project_id')
+                                    .eq('chat_id', chatId)
+                                    .eq('user_id', userId)
+                                    .eq('is_active', true)
+                                    .single();
+
+                                  if (chatSupabaseConnectionError || !project) {
+                                    console.error('No active Supabase connection found');
+                                    setNoActiveConnection(true);
+
+                                    return;
+                                  }
+
+                                  setNoActiveConnection(false);
+
+                                  if (project?.project_id) {
+                                    await executeQuery(project.project_id, action.content);
+                                    setSuccessfulQueries((prev) => ({ ...prev, [action.filePath]: true }));
+                                  } else {
+                                    console.error('no connected project');
+                                  }
+                                } catch (error) {
+                                  console.error('Failed to execute migration:', error);
+                                  setQueryError('쿼리 실행에 실패했습니다: ' + error);
+                                }
+                              }}
+                              disabled={successfulQueries[action.filePath]}
+                            >
+                              <div className="i-ph:check-circle-duotone text-base" />
+                              Apply
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </motion.div>
         )}
@@ -221,16 +348,6 @@ const ActionList = memo(({ actions }: ActionListProps) => {
                   >
                     <span className="flex-1">Start Application</span>
                   </a>
-                ) : type === 'supabase' && action.subType == 'sql' ? (
-                  <div>
-                    Run{' '}
-                    <code
-                      className="bg-bolt-elements-artifacts-inlineCode-background text-bolt-elements-artifacts-inlineCode-text px-1.5 py-1 rounded-md text-bolt-elements-item-contentAccent hover:underline cursor-pointer"
-                      onClick={() => openArtifactInWorkbench(JSON.parse(action.content).path)}
-                    >
-                      {JSON.parse(action.content).path}
-                    </code>
-                  </div>
                 ) : null}
               </div>
               {(type === 'shell' || type === 'start') && (

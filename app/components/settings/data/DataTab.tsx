@@ -235,7 +235,7 @@ export default function DataTab() {
     description: string;
     urlId?: string;
   }> => {
-    // Handle Sprint DEV standard format (single chat)
+    // Handle Sprint.dev standard format (single chat)
     if (data.messages && Array.isArray(data.messages)) {
       const chatId = crypto.randomUUID();
       return [
@@ -248,7 +248,7 @@ export default function DataTab() {
       ];
     }
 
-    // Handle Sprint DEV export format (multiple chats)
+    // Handle Sprint.dev export format (multiple chats)
     if (data.chats && Array.isArray(data.chats)) {
       return data.chats.map((chat: { id?: string; messages: Message[]; description?: string; urlId?: string }) => ({
         id: chat.id || crypto.randomUUID(),

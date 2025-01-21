@@ -1,4 +1,4 @@
-export type ActionType = 'file' | 'shell' | 'supabase';
+export type ActionType = 'file' | 'shell';
 
 export interface BaseAction {
   content: string;
@@ -17,14 +17,16 @@ export interface StartAction extends BaseAction {
   type: 'start';
 }
 
-export type SupabaseSubType = 'sql';
+// export type SupabaseSubType = 'sql';
 
-export interface SupabaseAction extends BaseAction {
-  type: 'supabase';
-  subType: SupabaseSubType;
-}
+/*
+ * export interface SupabaseAction extends BaseAction {
+ *   type: 'supabase';
+ *   subType: SupabaseSubType;
+ * }
+ */
 
-export type BoltAction = FileAction | ShellAction | StartAction | SupabaseAction;
+export type BoltAction = FileAction | ShellAction | StartAction;
 
 export type BoltActionData = BoltAction | BaseAction;
 
