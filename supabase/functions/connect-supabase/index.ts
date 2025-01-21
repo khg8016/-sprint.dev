@@ -65,7 +65,7 @@ router.get('/connect-supabase/login', async (ctx) => {
 router.get('/connect-supabase/oauth2/callback', async (ctx) => {
   const url = new URL(ctx.request.url);
   const code = url.searchParams.get('code');
-  // const userId = url.searchParams.get('user_id');
+  const userId = url.searchParams.get('user_id');
 
   // 1. 쿠키에서 sessionId 가져오기
   const cookies = ctx.request.headers.get('cookie');

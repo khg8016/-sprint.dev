@@ -2,8 +2,6 @@ import React from 'react';
 import { useLoaderData } from '@remix-run/react';
 import DownloadSupabaseSource from '~/components/utils/DownloadSupabaseSource.client';
 import { ClientOnly } from 'remix-utils/client-only';
-import { Header } from '~/components/header/Header';
-import BackgroundRays from '~/components/ui/BackgroundRays';
 import { json, type LoaderFunctionArgs } from '@remix-run/cloudflare';
 
 export async function loader(args: LoaderFunctionArgs) {
@@ -14,8 +12,8 @@ export default function ImportPage() {
 
   return (
     <div className="flex flex-col h-full w-full bg-bolt-elements-background-depth-1">
-      <BackgroundRays />
-      <Header />
+      {/* <BackgroundRays />
+      <Header /> */}
       <ClientOnly>
         {() => <DownloadSupabaseSource uploaderUserId={userId || ''} sourceId={sourceId || ''} />}
       </ClientOnly>
