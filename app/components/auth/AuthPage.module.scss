@@ -12,9 +12,16 @@
 }
 
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-5px); }
-  75% { transform: translateX(5px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
 }
 
 .authPage {
@@ -33,7 +40,9 @@
     padding: 2.5rem;
     background-color: var(--bolt-elements-bg-depth-2);
     border-radius: 12px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.1),
+      0 2px 4px -1px rgba(0, 0, 0, 0.06);
     animation: fadeIn 0.3s ease-out;
   }
 
@@ -45,7 +54,11 @@
       font-size: 2rem;
       font-weight: 600;
       margin-bottom: 0.5rem;
-      background: linear-gradient(135deg, var(--bolt-elements-button-primary-text), var(--bolt-elements-borderColorActive));
+      background: linear-gradient(
+        135deg,
+        var(--bolt-elements-button-primary-text),
+        var(--bolt-elements-borderColorActive)
+      );
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }

@@ -27,7 +27,17 @@ export default defineConfig((config) => {
       // 'process.env': JSON.stringify(process.env)
     },
     build: {
-      target: 'esnext',
+      target: ['es2020', 'chrome80', 'edge79', 'firefox72', 'safari13.1'],
+      rollupOptions: {
+        output: {
+          manualChunks: undefined, // 청크 분할 비활성화
+          format: 'es',
+          generatedCode: {
+            preset: 'es5',
+          },
+        },
+      },
+      modulePreload: false, // 모듈 프리로드 비활성화
     },
     plugins: [
       nodePolyfills({

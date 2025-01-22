@@ -4,7 +4,7 @@ import { computed } from 'nanostores';
 import { memo, useEffect, useRef, useState } from 'react';
 import { useSupabaseManagement } from '~/lib/hooks/useSupabaseManagement';
 import { supabase } from '~/lib/persistence/supabaseClient';
-import { createHighlighter, type BundledLanguage, type BundledTheme, type HighlighterGeneric } from 'shiki';
+import { createHighlighter } from 'shiki';
 import type { ActionState } from '~/lib/runtime/action-runner';
 import { workbenchStore } from '~/lib/stores/workbench';
 import { classNames } from '~/utils/classNames';
@@ -19,12 +19,15 @@ const highlighterOptions = {
   themes: ['light-plus', 'dark-plus'],
 };
 
-const shellHighlighter: HighlighterGeneric<BundledLanguage, BundledTheme> =
-  import.meta.hot?.data.shellHighlighter ?? (await createHighlighter(highlighterOptions));
+const getHighlighter = async () => {
+  const highlighter = import.meta.hot?.data.shellHighlighter ?? (await createHighlighter(highlighterOptions));
 
-if (import.meta.hot) {
-  import.meta.hot.data.shellHighlighter = shellHighlighter;
-}
+  if (import.meta.hot) {
+    import.meta.hot.data.shellHighlighter = highlighter;
+  }
+
+  return highlighter;
+};
 
 interface ArtifactProps {
   messageId: string;
@@ -257,14 +260,29 @@ interface ShellCodeBlockProps {
 }
 
 function ShellCodeBlock({ classsName, code }: ShellCodeBlockProps) {
+  const [html, setHtml] = useState<string>('');
+
+  useEffect(() => {
+    const highlight = async () => {
+      try {
+        const highlighter = await getHighlighter();
+        const highlighted = highlighter.codeToHtml(code, {
+          lang: 'shell',
+          theme: 'dark-plus',
+        });
+        setHtml(highlighted);
+      } catch (error) {
+        console.error('Failed to highlight code:', error);
+      }
+    };
+    highlight();
+  }, [code]);
+
   return (
     <div
       className={classNames('text-xs', classsName)}
       dangerouslySetInnerHTML={{
-        __html: shellHighlighter.codeToHtml(code, {
-          lang: 'shell',
-          theme: 'dark-plus',
-        }),
+        __html: html,
       }}
     ></div>
   );
