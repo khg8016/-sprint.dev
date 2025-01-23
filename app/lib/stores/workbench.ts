@@ -10,7 +10,7 @@ import { FilesStore, type FileMap } from './files';
 import { PreviewsStore } from './previews';
 import { TerminalStore } from './terminal';
 import JSZip from 'jszip';
-import { saveAs } from 'file-saver';
+import fileSaver from 'file-saver';
 import { Octokit, type RestEndpointMethodTypes } from '@octokit/rest';
 import * as nodePath from 'node:path';
 import { extractRelativePath } from '~/utils/diff';
@@ -32,6 +32,8 @@ export type ArtifactUpdateState = Pick<ArtifactState, 'title' | 'closed'>;
 type Artifacts = MapStore<Record<string, ArtifactState>>;
 
 export type WorkbenchViewType = 'code' | 'preview';
+
+const { saveAs } = fileSaver;
 
 export class WorkbenchStore {
   #previewsStore = new PreviewsStore(webcontainer);

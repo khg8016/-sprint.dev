@@ -9,43 +9,23 @@ import { Menu } from '~/components/sidebar/Menu.client';
 import { IconButton } from '~/components/ui/IconButton';
 import { Workbench } from '~/components/workbench/Workbench.client';
 import { classNames } from '~/utils/classNames';
-
-/*
- * import { MODEL_LIST, PROVIDER_LIST, initializeModelList } from '~/utils/constants';
- * import { MODEL_LIST, initializeModelList } from '~/utils/constants';
- */
 import { Messages } from './Messages.client';
 import { SendButton } from './SendButton.client';
-
-/*
- * import { APIKeyManager, getApiKeysFromCookies } from './APIKeyManager';
- * import { getApiKeysFromCookies } from './APIKeyManager';
- * import Cookies from 'js-cookie';
- */
 import * as Tooltip from '@radix-ui/react-tooltip';
-
 import styles from './BaseChat.module.scss';
 import { ExportChatButton } from '~/components/chat/chatExportAndImport/ExportChatButton';
 import { ImportButtons } from '~/components/chat/chatExportAndImport/ImportButtons';
 import { ExamplePrompts } from '~/components/chat/ExamplePrompts';
 import GitCloneButton from './GitCloneButton';
-
 import FilePreview from './FilePreview';
-
-// import { ModelSelector } from '~/components/chat/ModelSelector';
 import { SpeechRecognitionButton } from '~/components/chat/SpeechRecognition';
-
-// import type { ProviderInfo, IProviderSetting } from '~/types/model';
 import type { ProviderInfo } from '~/types/model';
 import { ScreenshotStateManager } from './ScreenshotStateManager';
 import { toast } from 'react-toastify';
 import StarterTemplates from './StarterTemplates';
 import type { ActionAlert } from '~/types/actions';
 import ChatAlert from './ChatAlert';
-
 import { useSupabaseAuth } from '~/lib/hooks/useSupabaseAuth';
-
-// import { LLMManager } from '~/lib/modules/llm/manager';
 
 const TEXTAREA_MIN_HEIGHT = 76;
 
@@ -78,6 +58,7 @@ interface BaseChatProps {
   setImageDataList?: (dataList: string[]) => void;
   actionAlert?: ActionAlert;
   clearAlert?: () => void;
+  id?: string;
 }
 
 export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
@@ -90,19 +71,10 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       chatStarted = false,
       isStreaming = false,
       model,
-
-      /*
-       * setModel,
-       * provider,
-       */
-
-      // setProvider,
       providerList,
       input = '',
       enhancingPrompt,
       handleInputChange,
-
-      // promptEnhanced,
       enhancePrompt,
       sendMessage,
       handleStop,
@@ -119,51 +91,10 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
     ref,
   ) => {
     const TEXTAREA_MAX_HEIGHT = chatStarted ? 400 : 200;
-
-    // const [apiKeys, setApiKeys] = useState<Record<string, string>>(getApiKeysFromCookies());
-
-    // const [modelList, setModelList] = useState(MODEL_LIST);
     const [isModelSettingsCollapsed, setIsModelSettingsCollapsed] = useState(false);
     const [isListening, setIsListening] = useState(false);
     const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
     const [transcript, setTranscript] = useState('');
-
-    // const [isModelLoading, setIsModelLoading] = useState<string | undefined>('all');
-
-    /*
-     * const getProviderSettings = useCallback(() => {
-     *   let providerSettings: Record<string, IProviderSetting> | undefined = undefined;
-     */
-
-    /*
-     *   try {
-     *     const savedProviderSettings = Cookies.get('providers');
-     */
-
-    /*
-     *     if (savedProviderSettings) {
-     *       const parsedProviderSettings = JSON.parse(savedProviderSettings);
-     */
-
-    /*
-     *       if (typeof parsedProviderSettings === 'object' && parsedProviderSettings !== null) {
-     *         providerSettings = parsedProviderSettings;
-     *       }
-     *     }
-     *   } catch (error) {
-     *     console.error('Error loading Provider Settings from cookies:', error);
-     */
-
-    /*
-     *     // Clear invalid cookie data
-     *     Cookies.remove('providers');
-     *   }
-     */
-
-    /*
-     *   return providerSettings;
-     * }, []);
-     */
 
     useEffect(() => {
       console.log(transcript);
@@ -201,77 +132,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
       }
     }, []);
 
-    /*
-     * useEffect(() => {
-     *   if (typeof window !== 'undefined') {
-     *     const providerSettings = getProviderSettings();
-     *     let parsedApiKeys: Record<string, string> | undefined = {};
-     */
-
-    /*
-     *     try {
-     *       parsedApiKeys = getApiKeysFromCookies();
-     *       setApiKeys(parsedApiKeys);
-     *     } catch (error) {
-     *       console.error('Error loading API keys from cookies:', error);
-     */
-
-    /*
-     *       Cookies.remove('apiKeys');
-     *     }
-     *     setIsModelLoading('all');
-     *     initializeModelList({ apiKeys: parsedApiKeys, providerSettings })
-     *       .then((modelList) => {
-     *         setModelList(modelList);
-     *       })
-     *       .catch((error) => {
-     *         console.error('Error initializing model list:', error);
-     *       })
-     *       .finally(() => {
-     *         setIsModelLoading(undefined);
-     *       });
-     *   }
-     * }, [providerList, provider]);
-     */
-
-    /*
-     * const onApiKeysChange = async (providerName: string, apiKey: string) => {
-     *   const newApiKeys = { ...apiKeys, [providerName]: apiKey };
-     *   setApiKeys(newApiKeys);
-     *   Cookies.set('apiKeys', JSON.stringify(newApiKeys));
-     */
-
-    //   const provider = LLMManager.getInstance(import.meta.env || process.env || {}).getProvider(providerName);
-
-    /*
-     *   if (provider && provider.getDynamicModels) {
-     *     setIsModelLoading(providerName);
-     */
-
-    /*
-     *     try {
-     *       const providerSettings = getProviderSettings();
-     *       const staticModels = provider.staticModels;
-     *       const dynamicModels = await provider.getDynamicModels(
-     *         newApiKeys,
-     *         providerSettings,
-     *         import.meta.env || process.env || {},
-     *       );
-     */
-
-    /*
-     *       setModelList((preModels) => {
-     *         const filteredOutPreModels = preModels.filter((x) => x.provider !== providerName);
-     *         return [...filteredOutPreModels, ...staticModels, ...dynamicModels];
-     *       });
-     *     } catch (error) {
-     *       console.error('Error loading dynamic models:', error);
-     *     }
-     *     setIsModelLoading(undefined);
-     *   }
-     * };
-     */
-
     const startListening = () => {
       if (recognition) {
         recognition.start();
@@ -291,11 +151,10 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
         sendMessage(event, messageInput);
 
         if (recognition) {
-          recognition.abort(); // Stop current recognition
-          setTranscript(''); // Clear transcript
+          recognition.abort();
+          setTranscript('');
           setIsListening(false);
 
-          // Clear the input by triggering handleInputChange with empty value
           if (handleInputChange) {
             const syntheticEvent = {
               target: { value: '' },
@@ -416,12 +275,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                 <div
                   className={classNames(
                     'bg-bolt-elements-background-depth-2 p-3 rounded-lg border border-bolt-elements-borderColor relative w-full max-w-chat mx-auto z-prompt',
-
-                    /*
-                     *{
-                     *  'sticky bottom-2': chatStarted,
-                     *},
-                     */
                   )}
                 >
                   <svg className={classNames(styles.PromptEffectContainer)}>
@@ -450,34 +303,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                     <rect className={classNames(styles.PromptEffectLine)} pathLength="100" strokeLinecap="round"></rect>
                     <rect className={classNames(styles.PromptShine)} x="48" y="24" width="70" height="1"></rect>
                   </svg>
-                  {/* <div>
-                    <ClientOnly>
-                      {() => (
-                        <div className={isModelSettingsCollapsed ? 'hidden' : ''}>
-                          <ModelSelector
-                            key={provider?.name + ':' + modelList.length}
-                            model={model}
-                            setModel={setModel}
-                            modelList={modelList}
-                            provider={provider}
-                            setProvider={setProvider}
-                            providerList={providerList || (PROVIDER_LIST as ProviderInfo[])}
-                            apiKeys={apiKeys}
-                            modelLoading={isModelLoading}
-                          />
-                          {(providerList || []).length > 0 && provider && (
-                            <APIKeyManager
-                              provider={provider}
-                              apiKey={apiKeys[provider.name] || ''}
-                              setApiKey={(key) => {
-                                onApiKeysChange(provider.name, key);
-                              }}
-                            />
-                          )}
-                        </div>
-                      )}
-                    </ClientOnly>
-                  </div> */}
                   <FilePreview
                     files={uploadedFiles}
                     imageDataList={imageDataList}
@@ -551,7 +376,6 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                             return;
                           }
 
-                          // ignore if using input method engine
                           if (event.nativeEvent.isComposing) {
                             return;
                           }
@@ -617,7 +441,11 @@ export const BaseChat = React.forwardRef<HTMLDivElement, BaseChatProps>(
                           onStop={stopListening}
                           disabled={isStreaming}
                         />
-                        {chatStarted && <ClientOnly>{() => <ExportChatButton exportChat={exportChat} />}</ClientOnly>}
+                        {chatStarted && (
+                          <>
+                            <ClientOnly>{() => <ExportChatButton exportChat={exportChat} />}</ClientOnly>
+                          </>
+                        )}
                         <IconButton
                           title="Model Settings"
                           className={classNames('transition-all flex items-center gap-1', {

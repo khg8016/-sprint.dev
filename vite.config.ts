@@ -29,6 +29,7 @@ export default defineConfig((config) => {
     build: {
       target: ['es2020', 'chrome80', 'edge79', 'firefox72', 'safari13.1'],
       rollupOptions: {
+        external: ['axios'],
         output: {
           manualChunks: undefined, // 청크 분할 비활성화
           format: 'es',

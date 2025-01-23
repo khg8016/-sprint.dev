@@ -298,6 +298,30 @@ export async function createChatFromMessages(
 /**
  * 12) 채팅 설명 업데이트
  */
+/**
+ * 13) 배포된 URL 가져오기
+ */
+export async function getLatestDeploymentUrl(chatId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('deployments')
+    .select('subdomain')
+    .eq('chat_id', chatId)
+    .eq('status', 'deployed')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error) {
+    if (error.details?.includes('0 rows')) {
+      return null;
+    }
+
+    throw error;
+  }
+
+  return data?.subdomain || null;
+}
+
 export async function updateChatDescription(userId: string, id: string, newDescription: string): Promise<void> {
   const chat = await getMessages(userId, id);
 

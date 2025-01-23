@@ -10,6 +10,7 @@ import { useSupabaseAuth } from '~/lib/hooks/useSupabaseAuth';
 import { supabase } from '~/lib/persistence/supabaseClient';
 import { useEffect, useState, useCallback } from 'react';
 import { useSupabaseManagement } from '~/lib/hooks/useSupabaseManagement';
+import { DeployButton } from '~/components/chat/DeployButton';
 
 interface HeaderActionButtonsProps {}
 
@@ -96,6 +97,8 @@ VITE_SUPABASE_URL=https://${chatProject.id}.supabase.co`);
       ) : chat.id && hasSupabaseToken ? (
         <ConnectChatToProjectButton chatId={chat.id} />
       ) : null}
+
+      {chat.id && <DeployButton chatId={chat.id} />}
       <div className="flex border border-bolt-elements-borderColor rounded-md overflow-hidden">
         <Button
           active={showChat}

@@ -14,8 +14,7 @@ interface SupabaseProjectModalProps {
 
 export function SupabaseProjectModal({ isOpen, onClose, chatId }: SupabaseProjectModalProps) {
   const { userId } = useSupabaseAuth();
-  const { loading, error, getProjects, createProject, getOrganizations, getProjectApiKeys } =
-    useSupabaseManagement(userId);
+  const { loading, getProjects, createProject, getOrganizations, getProjectApiKeys } = useSupabaseManagement(userId);
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -182,11 +181,11 @@ export function SupabaseProjectModal({ isOpen, onClose, chatId }: SupabaseProjec
                   {isCreatingNew ? 'Create New Project' : 'Select Project'}
                 </Dialog.Title>
 
-                {error && (
+                {/* {error && (
                   <div className="mt-2 p-4 bg-red-100 dark:bg-red-900 rounded-md text-red-700 dark:text-red-100">
                     {error.message}
                   </div>
-                )}
+                )} */}
 
                 {isCreatingNew ? (
                   <form onSubmit={handleCreateProject} className="mt-4">
