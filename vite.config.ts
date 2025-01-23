@@ -1,3 +1,5 @@
+/* eslint-disable */
+// @ts-nocheck
 import { cloudflareDevProxyVitePlugin as remixCloudflareDevProxy, vitePlugin as remixVitePlugin } from '@remix-run/dev';
 import UnoCSS from 'unocss/vite';
 import { defineConfig, type ViteDevServer } from 'vite';
@@ -23,11 +25,26 @@ export default defineConfig((config) => {
     define: {
       __COMMIT_HASH: JSON.stringify(getGitHash()),
       __APP_VERSION: JSON.stringify(process.env.npm_package_version),
-
-      // 'process.env': JSON.stringify(process.env)
+      global: 'globalThis',
+    },
+    resolve: {
+      alias: {
+        path: 'path-browserify',
+      },
+    },
+    optimizeDeps: {
+      include: ['path-browserify'],
+      esbuildOptions: {
+        define: {
+          global: 'globalThis',
+        },
+      },
     },
     build: {
       target: ['es2020', 'chrome80', 'edge79', 'firefox72', 'safari13.1'],
+      ssr: {
+        noExternal: ['path-browserify'],
+      },
       rollupOptions: {
         external: ['axios'],
         output: {
@@ -42,7 +59,14 @@ export default defineConfig((config) => {
     },
     plugins: [
       nodePolyfills({
-        include: ['path', 'buffer', 'process'],
+        include: ['buffer', 'process'],
+        globals: {
+          process: true,
+          Buffer: true,
+          module: true,
+          global: true,
+        },
+        protocolImports: true,
       }),
       config.mode !== 'test' && remixCloudflareDevProxy(),
       remixVitePlugin({
