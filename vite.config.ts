@@ -21,11 +21,17 @@ const getGitHash = () => {
 };
 
 export default defineConfig((config) => {
+  const isDev = config.mode === 'development';
   return {
     define: {
       __COMMIT_HASH: JSON.stringify(getGitHash()),
       __APP_VERSION: JSON.stringify(process.env.npm_package_version),
-      global: 'globalThis',
+      ...(isDev ? {
+        module: {},  // 개발 환경에서만 필요
+        global: 'globalThis'
+      } : {
+        global: 'globalThis'
+      })
     },
     resolve: {
       alias: {
@@ -42,31 +48,28 @@ export default defineConfig((config) => {
     },
     build: {
       target: ['es2020', 'chrome80', 'edge79', 'firefox72', 'safari13.1'],
-      ssr: {
-        noExternal: ['path-browserify'],
-      },
       rollupOptions: {
-        external: ['axios'],
         output: {
-          manualChunks: undefined, // 청크 분할 비활성화
+          manualChunks: undefined,
           format: 'es',
           generatedCode: {
-            preset: 'es5',
-          },
-        },
+            preset: 'es5'
+          }
+        }
       },
-      modulePreload: false, // 모듈 프리로드 비활성화
+      modulePreload: false,
+      resolve: {
+        alias: {
+          'set-cookie-parser': 'set-cookie-parser/lib/set-cookie.js'
+        }
+      }
     },
     plugins: [
       nodePolyfills({
-        include: ['buffer', 'process'],
+        include: ['path', 'buffer', 'process'],
         globals: {
           process: true,
-          Buffer: true,
-          module: true,
-          global: true,
         },
-        protocolImports: true,
       }),
       config.mode !== 'test' && remixCloudflareDevProxy(),
       remixVitePlugin({
@@ -124,3 +127,4 @@ function chrome129IssuePlugin() {
     },
   };
 }
+

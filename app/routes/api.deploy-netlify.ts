@@ -240,18 +240,23 @@ async function createZipDeploy(
       const normalizedPath = path.replace(/^\/+/, '');
 
       if (fileData.isBinary) {
-        // 바이너리 파일은 base64 디코딩
-        const content = Buffer.from(fileData.content, 'base64');
-        zip.file(normalizedPath, content, { binary: true });
+        // 바이너리 파일은 base64 디코딩하여 Uint8Array로 변환
+        const binaryString = atob(fileData.content);
+        const bytes = new Uint8Array(binaryString.length);
+
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        zip.file(normalizedPath, bytes, { binary: true });
       } else {
         // 텍스트 파일은 그대로 추가
         zip.file(normalizedPath, fileData.content);
       }
     }
 
-    // ZIP 생성
+    // ZIP 생성 (uint8array 타입 사용)
     const zipBuffer = await zip.generateAsync({
-      type: 'nodebuffer',
+      type: 'uint8array',
       compression: 'DEFLATE',
       compressionOptions: { level: 9 },
     });
