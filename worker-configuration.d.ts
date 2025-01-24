@@ -1,5 +1,5 @@
 interface Env {
-  DEFAULT_NUM_CTX:Settings;
+  DEFAULT_NUM_CTX: Settings;
   ANTHROPIC_API_KEY: string;
   OPENAI_API_KEY: string;
   GROQ_API_KEY: string;
@@ -17,4 +17,6 @@ interface Env {
   XAI_API_KEY: string;
   PERPLEXITY_API_KEY: string;
   AWS_BEDROCK_CONFIG: string;
+  NETLIFY_AUTH_TOKEN: string;
+  NETLIFY_ACCOUNT_SLUG: string;
 }
