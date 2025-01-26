@@ -1,4 +1,4 @@
-# Sprint.dev 자동 배포 시스템 설계
+# SprintSolo.dev 자동 배포 시스템 설계
 
 ## 0. 사용자 시나리오
 

@@ -7,7 +7,7 @@ export default function AuthPage() {
       <div className={styles.container}>
         <div className={styles.header}>
           <h1>Welcome Back</h1>
-          <p>Sign in to continue to Sprint.dev</p>
+          <p>Sign in to continue to SprintSolo.dev</p>
         </div>
         <AuthButtons />
       </div>
