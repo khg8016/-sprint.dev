@@ -509,6 +509,7 @@ export const ChatImpl = memo(
         promptEnhanced={promptEnhanced}
         sendMessage={sendMessage}
         model={model}
+        chatId={id}
         setModel={handleModelChange}
         provider={provider}
         setProvider={handleProviderChange}

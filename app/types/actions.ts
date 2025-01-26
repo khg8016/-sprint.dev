@@ -1,4 +1,4 @@
-export type ActionType = 'file' | 'shell';
+export type ActionType = 'file' | 'shell' | 'deploy';
 
 export interface BaseAction {
   content: string;
@@ -17,6 +17,10 @@ export interface StartAction extends BaseAction {
   type: 'start';
 }
 
+export interface DeployAction extends BaseAction {
+  type: 'deploy';
+}
+
 // export type SupabaseSubType = 'sql';
 
 /*
@@ -26,7 +30,7 @@ export interface StartAction extends BaseAction {
  * }
  */
 
-export type BoltAction = FileAction | ShellAction | StartAction;
+export type BoltAction = FileAction | ShellAction | StartAction | DeployAction;
 
 export type BoltActionData = BoltAction | BaseAction;
 

@@ -359,7 +359,7 @@ export class StreamingMessageParser {
       }
 
       (actionAttributes as FileAction).filePath = filePath;
-    } else if (!['shell', 'start'].includes(actionType)) {
+    } else if (!['shell', 'start', 'deploy'].includes(actionType)) {
       /*
        * else if (actionType === 'supabase') {
        *   const subType = this.#extractAttribute(actionTag, 'subType') as SupabaseSubType;

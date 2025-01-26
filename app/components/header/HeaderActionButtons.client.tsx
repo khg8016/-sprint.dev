@@ -12,9 +12,14 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSupabaseManagement } from '~/lib/hooks/useSupabaseManagement';
 import { DeployButton } from '~/components/chat/DeployButton';
 
-interface HeaderActionButtonsProps {}
+// import { DeployButton } from '~/components/chat/DeployButton';
 
-export function HeaderActionButtons({}: HeaderActionButtonsProps) {
+interface HeaderActionButtonsProps {
+  isStreaming: boolean;
+  sendMessage: (messageInput?: string) => void;
+}
+
+export function HeaderActionButtons({ isStreaming, sendMessage }: HeaderActionButtonsProps) {
   const showWorkbench = useStore(workbenchStore.showWorkbench);
   const { showChat } = useStore(chatStore);
   const chat = useStore(chatStore);
@@ -90,6 +95,17 @@ VITE_SUPABASE_URL=https://${chatProject.id}.supabase.co`);
 
   return (
     <div className="flex items-center gap-3">
+      {chat.id && (
+        <DeployButton
+          chatId={chat.id}
+          isStreaming={isStreaming}
+          onSendMessage={async (message) => {
+            if (sendMessage) {
+              sendMessage(message);
+            }
+          }}
+        />
+      )}
       {userId && !hasSupabaseToken && chat.id ? (
         <ConnectSupabaseButton chatId={chat.id} />
       ) : !isLoading && chatProject ? (
@@ -98,7 +114,7 @@ VITE_SUPABASE_URL=https://${chatProject.id}.supabase.co`);
         <ConnectChatToProjectButton chatId={chat.id} />
       ) : null}
 
-      {chat.id && <DeployButton chatId={chat.id} />}
+      {/* {chat.id && <DeployButton chatId={chat.id} />} */}
       <div className="flex border border-bolt-elements-borderColor rounded-md overflow-hidden">
         <Button
           active={showChat}

@@ -12,8 +12,6 @@ export default function ImportPage() {
 
   return (
     <div className="flex flex-col h-full w-full bg-bolt-elements-background-depth-1">
-      {/* <BackgroundRays />
-      <Header /> */}
       <ClientOnly>
         {() => <DownloadSupabaseSource uploaderUserId={userId || ''} sourceId={sourceId || ''} />}
       </ClientOnly>

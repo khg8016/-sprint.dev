@@ -13,6 +13,9 @@ import { WORK_DIR } from '~/utils/constants';
 import type { FileAction } from '~/types/actions';
 import { useSupabaseAuth } from '~/lib/hooks/useSupabaseAuth';
 import { chatStore } from '~/lib/stores/chat';
+import * as supabaseDb from '~/lib/persistence/supabase_db';
+import type { FileMap } from '~/lib/stores/files';
+import { toast } from 'react-toastify';
 
 const highlighterOptions = {
   langs: ['shell'],
@@ -79,6 +82,8 @@ export const Artifact = memo(({ messageId }: ArtifactProps) => {
     }
   }, [actions]);
 
+  const files = useStore(workbenchStore.files);
+
   return (
     <div className="artifact border border-bolt-elements-borderColor flex flex-col overflow-hidden rounded-lg w-full transition-border duration-150">
       <div className="flex">
@@ -136,7 +141,7 @@ export const Artifact = memo(({ messageId }: ArtifactProps) => {
             <div className="bg-bolt-elements-artifacts-borderColor h-[1px]" />
 
             <div className="p-5 text-left bg-bolt-elements-actions-background">
-              <ActionList actions={actions} />
+              <ActionList actions={actions} chatId={chatId || ''} userId={userId || ''} files={files} />
             </div>
           </motion.div>
         )}
@@ -290,6 +295,9 @@ function ShellCodeBlock({ classsName, code }: ShellCodeBlockProps) {
 
 interface ActionListProps {
   actions: ActionState[];
+  chatId: string;
+  userId: string;
+  files: FileMap;
 }
 
 const actionVariants = {
@@ -304,8 +312,78 @@ function openArtifactInWorkbench(filePath: any) {
 
   workbenchStore.setSelectedFile(`${WORK_DIR}/${filePath}`);
 }
+interface DeployResponse {
+  success: boolean;
+  deployment?: {
+    url: string;
+  };
+  error?: string;
+}
 
-const ActionList = memo(({ actions }: ActionListProps) => {
+const startDeployment = async (chatId: string, userId: string, files: FileMap): Promise<DeployResponse> => {
+  try {
+    // 파일 저장
+    await workbenchStore.saveAllFiles();
+
+    // urlId 가져오기
+    const chat = await supabaseDb.getMessagesById(userId, chatId);
+
+    if (!chat) {
+      throw new Error('Chat not found.');
+    }
+
+    // 파일 경로 처리
+    const processedFiles = Object.entries(files).reduce(
+      (acc, [path, file]) => {
+        const cleanPath = path.replace('/home/project/', '/');
+        acc[cleanPath] = file;
+
+        return acc;
+      },
+      {} as typeof files,
+    );
+
+    // 배포 요청
+    const response = await fetch('/api/deploy-netlify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ chatId, urlId: chat.urlId, files: processedFiles }),
+    });
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: `Deploy request failed: ${response.statusText}`,
+      };
+    }
+
+    const data: DeployResponse = await response.json();
+
+    if (data.success && data.deployment) {
+      toast.success(`Site has been deployed: ${data.deployment.url}`);
+      return data;
+    } else {
+      toast.error(`An error occurred during deployment.`);
+      return {
+        success: false,
+        error: data.error || 'An error occurred during deployment.',
+      };
+    }
+  } catch (error: any) {
+    toast.error('An error occurred during deployment.');
+    return {
+      success: false,
+      error: 'An error occurred during deployment. ' + error.message,
+    };
+  }
+};
+
+const ActionList = memo(({ actions, chatId, userId, files }: ActionListProps) => {
+  const [isDeploying, setIsDeploying] = useState(false);
+  const [deployedUrl, setDeployedUrl] = useState<string | null>(null);
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
       <ul className="list-none space-y-2.5">
@@ -366,6 +444,47 @@ const ActionList = memo(({ actions }: ActionListProps) => {
                   >
                     <span className="flex-1">Start Application</span>
                   </a>
+                ) : type === 'deploy' ? (
+                  <div className="flex items-center justify-between w-full min-h-[28px] gap-3">
+                    <span className="text-bolt-elements-textPrimary">Do you want to deploy?</span>
+                    <button
+                      onClick={async () => {
+                        if (deployedUrl) {
+                          window.open(deployedUrl, '_blank');
+                        } else if (chatId && userId && !isDeploying) {
+                          setIsDeploying(true);
+
+                          try {
+                            const response = await startDeployment(chatId, userId, files);
+
+                            if (response?.deployment?.url) {
+                              setDeployedUrl(response.deployment.url);
+                            }
+                          } finally {
+                            setIsDeploying(false);
+                          }
+                        }
+                      }}
+                      disabled={isDeploying}
+                      className={classNames(
+                        'flex items-center gap-2 px-4 py-2 rounded-md border transition-all duration-150',
+                        isDeploying
+                          ? 'bg-emerald-500/50 text-white/50 cursor-not-allowed'
+                          : deployedUrl
+                            ? 'bg-blue-500 text-white hover:bg-blue-600 hover:scale-[1.02] active:scale-[0.98] border-blue-400'
+                            : 'bg-emerald-500 text-white hover:bg-emerald-600 hover:scale-[1.02] active:scale-[0.98] border-emerald-400',
+                      )}
+                    >
+                      {isDeploying ? (
+                        <div className="i-svg-spinners:90-ring-with-bg w-4 h-4" />
+                      ) : deployedUrl ? (
+                        <div className="i-ph:arrow-square-out-bold w-4 h-4" />
+                      ) : (
+                        <div className="i-ph:cloud-arrow-up-bold w-4 h-4" />
+                      )}
+                      <span>{isDeploying ? 'Deploying...' : deployedUrl ? 'Visit Site' : 'Yes, deploy'}</span>
+                    </button>
+                  </div>
                 ) : null}
               </div>
               {(type === 'shell' || type === 'start') && (

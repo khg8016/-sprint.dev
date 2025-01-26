@@ -5,7 +5,12 @@ import { classNames } from '~/utils/classNames';
 import { HeaderActionButtons } from './HeaderActionButtons.client';
 import { ChatDescription } from '~/lib/persistence/ChatDescription.client';
 
-export function Header() {
+interface Props {
+  isStreaming: boolean;
+  sendMessage: (messageInput?: string) => void;
+}
+
+export function Header({ isStreaming, sendMessage }: Props) {
   const chat = useStore(chatStore);
 
   return (
@@ -29,7 +34,7 @@ export function Header() {
                 <ChatDescription />
               </span>
               <div className="mr-1">
-                <HeaderActionButtons />
+                <HeaderActionButtons isStreaming={isStreaming} sendMessage={sendMessage} />
               </div>
             </>
           )
