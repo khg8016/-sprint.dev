@@ -5,7 +5,8 @@ import axios from 'axios';
 import { type FileMap } from '~/types/artifact';
 import { type NetlifyEnv } from '~/types/netlify';
 import { getDnsZoneId, setupNetlifyDNSRecord } from '~/lib/netlify/dns';
-import { createNetlifySite, createZipDeploy } from '~/lib/netlify/site';
+import { createNetlifySite } from '~/lib/netlify/site';
+import { createFileDigestDeploy, uploadRequiredFiles, uploadRequiredFunctions } from '~/lib/netlify/deploy/file-digest';
 import { setupNetlifyEnvVars } from '~/lib/netlify/env';
 
 interface RequestBody {
@@ -194,22 +195,46 @@ async function deployToNetlify(config: DeploymentConfig, env: NetlifyEnv, client
     // 4) 환경 변수 설정
     await setupNetlifyEnvVars({ siteId, files: config.files, env, client });
 
-    // 5) Netlify ZIP 배포 수행
-    const netlifyDeployment = await createZipDeploy(
+    // 5) 배포할 파일들 준비
+    const deployFiles = {
+      ...distFiles,
+      ...Object.fromEntries(Object.entries(config.files).filter(([path]) => path.includes('/netlify/functions/'))),
+    };
+    logger.info('deployFiles: ', deployFiles);
+
+    // 6) Netlify File Digest 배포 수행
+    const fileDigestResponse = await createFileDigestDeploy(
       {
         siteId,
-        files: distFiles,
+        files: deployFiles,
       },
       env,
       client,
     );
+    console.log(fileDigestResponse);
+
+    // 7) 필요한 파일 업로드
+    if (fileDigestResponse.required?.length > 0) {
+      await uploadRequiredFiles(fileDigestResponse.id, fileDigestResponse.required, deployFiles, env, client);
+    }
+
+    // 8) 필요한 함수 업로드
+    if (fileDigestResponse.required_functions?.length > 0) {
+      await uploadRequiredFunctions(
+        fileDigestResponse.id,
+        fileDigestResponse.required_functions,
+        deployFiles,
+        env,
+        client,
+      );
+    }
 
     // Update deployment record
     const { error: updateError } = await supabase
       .from('deployments')
       .update({
         status: 'deployed',
-        netlify_deployment_id: netlifyDeployment.id,
+        netlify_deployment_id: fileDigestResponse.id,
       })
       .eq('id', deployment.id);
 
@@ -228,7 +253,7 @@ async function deployToNetlify(config: DeploymentConfig, env: NetlifyEnv, client
       success: true,
       deployment: {
         ...deployment,
-        netlify_deployment_id: netlifyDeployment.id,
+        netlify_deployment_id: fileDigestResponse.id,
         netlify_site_id: siteId,
         url: `https://${config.subdomain}.sprintsolo.dev`,
       },

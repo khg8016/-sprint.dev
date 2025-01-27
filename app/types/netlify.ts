@@ -1,3 +1,18 @@
+export interface FileDigestDeployment {
+  files: {
+    [path: string]: string; // path: SHA1 hash
+  };
+  functions: {
+    [name: string]: string; // name: SHA256 hash
+  };
+}
+
+export interface FileDigestResponse {
+  id: string;
+  required: string[]; // 업로드 필요한 파일 해시
+  required_functions: string[]; // 업로드 필요한 함수 해시
+}
+
 export interface NetlifyDeploymentResponse {
   id: string;
   site_id: string;
