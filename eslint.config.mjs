@@ -4,31 +4,49 @@ import { getNamingConventionRule, tsFileExtensions } from '@blitz/eslint-plugin/
 
 export default [
   {
-    ignores: [
-      '**/dist',
-      '**/node_modules',
-      '**/.wrangler',
-      '**/bolt/build',
-      '**/.history',
-    ],
+    ignores: ['**/dist', '**/node_modules', '**/.wrangler', '**/bolt/build', '**/.history'],
   },
   ...blitzPlugin.configs.recommended(),
   {
     rules: {
+      // 기본 규칙 비활성화
       '@blitz/catch-error-name': 'off',
       '@typescript-eslint/no-this-alias': 'off',
       '@typescript-eslint/no-empty-object-type': 'off',
       '@blitz/comment-syntax': 'off',
       '@blitz/block-scope-case': 'off',
-      'array-bracket-spacing': ["error", "never"],
-      'object-curly-newline': ["error", { "consistent": true }],
-      'keyword-spacing': ["error", { "before": true, "after": true }],
-      'consistent-return': "error",
-      'semi': ["error", "always"],
-      'curly': ["error"],
-      'no-eval': ["error"],
-      'linebreak-style': ["error", "unix"],
-      'arrow-spacing': ["error", { "before": true, "after": true }]
+
+      // 코드 스타일 규칙
+      quotes: [
+        'error',
+        'single',
+        {
+          avoidEscape: true,
+          allowTemplateLiterals: true,
+        },
+      ],
+      'quote-props': ['error', 'as-needed'],
+
+      // prettier와 충돌하는 규칙들 비활성화
+      'array-bracket-spacing': 'off',
+      'object-curly-spacing': 'off',
+      'object-curly-newline': 'off',
+      'comma-dangle': 'off',
+      indent: 'off',
+      semi: 'off',
+      'space-before-function-paren': 'off',
+      'no-trailing-spaces': 'off',
+
+      // 주석 관련 규칙 비활성화
+      'multiline-comment-style': 'off',
+      'spaced-comment': 'off',
+      'lines-around-comment': 'off',
+
+      // 유지할 중요 규칙들
+      'no-unused-vars': 'warn',
+      'no-console': 'off',
+      'no-eval': 'error',
+      'consistent-return': 'error',
     },
   },
   {
@@ -53,7 +71,7 @@ export default [
           patterns: [
             {
               group: ['../'],
-              message: 'Relative imports are not allowed. Please use \'~/\' instead.',
+              message: "Relative imports are not allowed. Please use '~/' instead.",
             },
           ],
         },
