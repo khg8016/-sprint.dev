@@ -1,4 +1,4 @@
-import { createHash } from 'crypto';
+import { createHash } from 'node:crypto';
 import { type FileMap } from '~/types/artifact';
 
 /**

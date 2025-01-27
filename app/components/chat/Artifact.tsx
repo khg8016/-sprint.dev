@@ -318,9 +318,18 @@ interface DeployResponse {
     url: string;
   };
   error?: string;
+  details?: {
+    code?: number;
+    message?: string;
+  };
 }
 
-const startDeployment = async (chatId: string, userId: string, files: FileMap): Promise<DeployResponse> => {
+const startDeployment = async (
+  chatId: string,
+  userId: string,
+  files: FileMap,
+  isRetry: boolean = false,
+): Promise<DeployResponse> => {
   try {
     // 파일 저장
     await workbenchStore.saveAllFiles();
@@ -352,20 +361,21 @@ const startDeployment = async (chatId: string, userId: string, files: FileMap): 
       body: JSON.stringify({ chatId, urlId: chat.urlId, files: processedFiles }),
     });
 
-    if (!response.ok) {
-      return {
-        success: false,
-        error: `Deploy request failed: ${response.statusText}`,
-      };
-    }
-
-    const data: DeployResponse = await response.json();
+    const data = (await response.json()) as DeployResponse;
+    console.log(data);
 
     if (data.success && data.deployment) {
       toast.success(`Site has been deployed: ${data.deployment.url}`);
       return data;
     } else {
+      // "No records matched" 500 에러인 경우 한 번만 재시도
+      if (!isRetry && data.details?.code === 500 && data.details?.message === 'No records matched') {
+        console.log('Retrying deployment due to "No records matched" error...');
+        return startDeployment(chatId, userId, files, true);
+      }
+
       toast.error(`An error occurred during deployment.`);
+
       return {
         success: false,
         error: data.error || 'An error occurred during deployment.',
@@ -455,7 +465,7 @@ const ActionList = memo(({ actions, chatId, userId, files }: ActionListProps) =>
                           setIsDeploying(true);
 
                           try {
-                            const response = await startDeployment(chatId, userId, files);
+                            const response = await startDeployment(chatId, userId, files, false);
 
                             if (response?.deployment?.url) {
                               setDeployedUrl(response.deployment.url);

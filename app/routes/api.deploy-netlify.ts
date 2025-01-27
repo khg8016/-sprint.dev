@@ -31,6 +31,21 @@ interface DeploymentConfig {
   subdomain: string;
 }
 
+interface DeployResult {
+  success: boolean;
+  deployment?: {
+    id: string;
+    chat_id: string;
+    subdomain: string;
+    status: string;
+    netlify_deployment_id: string;
+    netlify_site_id: string;
+    url: string;
+  };
+  error?: string;
+  details?: any; // 원본 에러 정보를 포함하기 위한 필드
+}
+
 const logger = createScopedLogger('api.deploy-netlify');
 
 function filterDistFiles(files: FileMap): FileMap {
@@ -104,26 +119,26 @@ function filterDistFiles(files: FileMap): FileMap {
   return distFiles;
 }
 
-async function deployToNetlify(config: DeploymentConfig, env: NetlifyEnv, client: typeof axios) {
+async function deployToNetlify(config: DeploymentConfig, env: NetlifyEnv, client: typeof axios): Promise<DeployResult> {
   let deployment: Deployment | undefined;
 
-  // 1) /dist 하위 파일만 뽑아서, Netlify에 업로드할 최종 파일맵 구성
-  const distFiles = filterDistFiles(config.files);
-  console.log(distFiles);
-
-  // 2) 필수 파일(예: /index.html)이 존재하는지 체크
-  if (!distFiles['index.html']) {
-    throw new Error('No /index.html found in the files. Did you run the build?');
-  }
-
-  // 사이트 이름 생성 (chatId 기반으로 고정)
-  const shortChatId = config.chatId
-    .replace(/[^a-zA-Z0-9]/g, '')
-    .toLowerCase()
-    .slice(0, 8);
-  const siteName = `spsd-${config.subdomain}-${shortChatId}`;
-
   try {
+    // 1) /dist 하위 파일만 뽑아서, Netlify에 업로드할 최종 파일맵 구성
+    const distFiles = filterDistFiles(config.files);
+    console.log(distFiles);
+
+    // 2) 필수 파일(예: /index.html)이 존재하는지 체크
+    if (!distFiles['index.html']) {
+      throw new Error('No /index.html found in the files. Did you run the build?');
+    }
+
+    // 사이트 이름 생성 (chatId 기반으로 고정)
+    const shortChatId = config.chatId
+      .replace(/[^a-zA-Z0-9]/g, '')
+      .toLowerCase()
+      .slice(0, 8);
+    const siteName = `spsd-${config.subdomain}-${shortChatId}`;
+
     // DNS zone ID 조회
     const zoneId = await getDnsZoneId(env, client);
 
@@ -211,7 +226,7 @@ async function deployToNetlify(config: DeploymentConfig, env: NetlifyEnv, client
       env,
       client,
     );
-    console.log(fileDigestResponse);
+    logger.info('File digest response:', JSON.stringify(fileDigestResponse));
 
     // 7) 필요한 파일 업로드
     if (fileDigestResponse.required?.length > 0) {
@@ -220,16 +235,21 @@ async function deployToNetlify(config: DeploymentConfig, env: NetlifyEnv, client
 
     // 8) 필요한 함수 업로드
     if (fileDigestResponse.required_functions?.length > 0) {
-      await uploadRequiredFunctions(
-        fileDigestResponse.id,
-        fileDigestResponse.required_functions,
-        deployFiles,
-        env,
-        client,
-      );
+      try {
+        await uploadRequiredFunctions(
+          fileDigestResponse.id,
+          fileDigestResponse.required_functions,
+          deployFiles,
+          env,
+          client,
+        );
+      } catch (error: any) {
+        logger.error('Function upload failed:', error);
+        await supabase.from('deployments').update({ status: 'failed' }).eq('id', deployment.id);
+        throw error;
+      }
     }
 
-    // Update deployment record
     const { error: updateError } = await supabase
       .from('deployments')
       .update({
@@ -261,7 +281,6 @@ async function deployToNetlify(config: DeploymentConfig, env: NetlifyEnv, client
   } catch (error: any) {
     logger.error('Deployment failed:', error);
 
-    // Log error
     if (deployment?.id) {
       await supabase.from('deployment_logs').insert({
         deployment_id: deployment.id,
@@ -269,13 +288,13 @@ async function deployToNetlify(config: DeploymentConfig, env: NetlifyEnv, client
         message: error.message,
       });
 
-      // Update deployment status to failed
       await supabase.from('deployments').update({ status: 'failed' }).eq('id', deployment.id);
     }
 
     return {
       success: false,
       error: error.message,
+      details: error.response?.data, // 원본 에러 정보 포함
     };
   }
 }
