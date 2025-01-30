@@ -336,6 +336,7 @@ export class WorkbenchStore {
     const { messageId } = data;
 
     const artifact = this.#getArtifact(messageId);
+    console.log('_runAction', data);
 
     if (!artifact) {
       unreachable('Artifact not found');
@@ -350,6 +351,7 @@ export class WorkbenchStore {
     if (data.action.type === 'file') {
       const wc = await webcontainer;
       const fullPath = nodePath.join(wc.workdir, data.action.filePath);
+      console.log('fullPath', fullPath);
 
       if (this.selectedFile.value !== fullPath) {
         this.setSelectedFile(fullPath);

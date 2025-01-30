@@ -49,41 +49,6 @@ export function useMessageParser() {
             logger.trace('onActionClose', data.action);
             console.log('onActionClose', data.action);
 
-            /*
-             * if (data.action.type == 'supabase') {
-             *   const content = JSON.parse(data.action.content);
-             */
-
-            /*
-             *   if (data.action.subType == 'sql') {
-             *     const query = content.sql;
-             */
-
-            /*
-             *     const { data: project, error: chatSupabaseConnectionError } = await supabase
-             *       .from('chat_supabase_connections')
-             *       .select('project_id')
-             *       .eq('chat_id', data.chatId)
-             *       .eq('user_id', data.userId)
-             *       .eq('is_active', true)
-             *       .single();
-             */
-
-            /*
-             *     if (chatSupabaseConnectionError || !project) {
-             *     }
-             */
-
-            /*
-             *     if (project?.project_id && data.excuteQueryFunc) {
-             *       data.excuteQueryFunc(project.project_id, query);
-             *     } else {
-             *       console.error('no connected project');
-             *     }
-             *   }
-             * }
-             */
-
             if (data.action.type !== 'file') {
               workbenchStore.addAction(data);
             }
