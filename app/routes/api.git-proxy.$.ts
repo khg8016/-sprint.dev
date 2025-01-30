@@ -50,6 +50,7 @@ async function handleProxyRequest(request: Request, path: string | undefined) {
 
     // Forward the response with CORS headers
     const responseHeaders = new Headers(response.headers);
+    responseHeaders.delete('www-authenticate'); // WWW-Authenticate 헤더 제거
     Object.entries(corsHeaders).forEach(([key, value]) => {
       responseHeaders.set(key, value);
     });

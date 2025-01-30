@@ -6,22 +6,28 @@ import http from 'isomorphic-git/http/web';
 import Cookies from 'js-cookie';
 import { toast } from 'react-toastify';
 
-const lookupSavedPassword = (url: string) => {
-  const domain = url.split('/')[2];
-  const gitCreds = Cookies.get(`git:${domain}`);
+// const lookupSavedPassword = (url: string) => {
+//   const domain = url.split('/')[2];
+//   const gitCreds = Cookies.get(`git:${domain}`);
 
-  if (!gitCreds) {
-    return null;
-  }
+//   console.log('url', url);
+//   console.log('gitCreds', gitCreds);
 
-  try {
-    const { username, password } = JSON.parse(gitCreds || '{}');
-    return { username, password };
-  } catch (error) {
-    console.log(`Failed to parse Git Cookie ${error}`);
-    return null;
-  }
-};
+//   if (!gitCreds) {
+//     return null;
+//   }
+
+//   try {
+//     const { username, password } = JSON.parse(gitCreds || '{}');
+
+//     console.log({ username, password });
+
+//     return { username, password };
+//   } catch (error) {
+//     console.log(`Failed to parse Git Cookie ${error}`);
+//     return null;
+//   }
+// };
 
 const saveGitAuth = (url: string, auth: GitAuth) => {
   const domain = url.split('/')[2];
@@ -53,14 +59,16 @@ export function useGit() {
       const headers: {
         [x: string]: string;
       } = {
-        'User-Agent': 'bolt.diy',
+        'User-Agent': 'sprintsolo.dev',
       };
 
-      const auth = lookupSavedPassword(url);
+      // const auth = lookupSavedPassword(url);
 
-      if (auth) {
-        headers.Authorization = `Basic ${Buffer.from(`${auth.username}:${auth.password}`).toString('base64')}`;
-      }
+      // if (auth) {
+      //   headers.Authorization = `Bearer ${auth.password}`;
+      // } else {
+      //   headers.Authorization = `Bearer `;
+      // }
 
       try {
         await git.clone({
@@ -73,17 +81,17 @@ export function useGit() {
           corsProxy: '/api/git-proxy',
           headers,
 
-          onAuth: (url) => {
-            let auth = lookupSavedPassword(url);
+          onAuth: (_url): GitAuth | { cancel: true } => {
+            // const auth = lookupSavedPassword(url);
 
-            if (auth) {
-              return auth;
-            }
+            // if (auth) {
+            //   return auth;
+            // }
 
-            if (confirm('This repo is password protected. Ready to enter a username & password?')) {
-              auth = {
-                username: prompt('Enter username'),
-                password: prompt('Enter password'),
+            if (confirm('This repo is password protected. Ready to enter a username & github personal access token?')) {
+              const auth = {
+                username: prompt('Enter username') || '',
+                password: prompt('Enter github personal access token') || '',
               };
               return auth;
             } else {
@@ -94,6 +102,7 @@ export function useGit() {
             toast.error(`Error Authenticating with ${url.split('/')[2]}`);
           },
           onAuthSuccess: (url, auth) => {
+            console.log(auth);
             saveGitAuth(url, auth);
           },
         });
