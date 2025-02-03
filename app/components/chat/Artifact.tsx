@@ -393,6 +393,9 @@ const startDeployment = async (
 const ActionList = memo(({ actions, chatId, userId, files }: ActionListProps) => {
   const [isDeploying, setIsDeploying] = useState(false);
   const [deployedUrl, setDeployedUrl] = useState<string | null>(null);
+  const buildFailed = actions.some(
+    (a) => a.type === 'shell' && a.content?.toLowerCase().includes('build') && a.status === 'failed',
+  );
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
@@ -459,6 +462,10 @@ const ActionList = memo(({ actions, chatId, userId, files }: ActionListProps) =>
                     <span className="text-bolt-elements-textPrimary">Do you want to deploy?</span>
                     <button
                       onClick={async () => {
+                        if (buildFailed) {
+                          return;
+                        }
+
                         if (deployedUrl) {
                           window.open(deployedUrl, '_blank');
                         } else if (chatId && userId && !isDeploying) {
@@ -475,24 +482,36 @@ const ActionList = memo(({ actions, chatId, userId, files }: ActionListProps) =>
                           }
                         }
                       }}
-                      disabled={isDeploying}
+                      disabled={isDeploying || buildFailed}
                       className={classNames(
                         'flex items-center gap-2 px-4 py-2 rounded-md border transition-all duration-150',
                         isDeploying
                           ? 'bg-emerald-500/50 text-white/50 cursor-not-allowed'
-                          : deployedUrl
-                            ? 'bg-blue-500 text-white hover:bg-blue-600 hover:scale-[1.02] active:scale-[0.98] border-blue-400'
-                            : 'bg-emerald-500 text-white hover:bg-emerald-600 hover:scale-[1.02] active:scale-[0.98] border-emerald-400',
+                          : buildFailed
+                            ? 'bg-red-500 text-white cursor-not-allowed'
+                            : deployedUrl
+                              ? 'bg-blue-500 text-white hover:bg-blue-600 hover:scale-[1.02] active:scale-[0.98] border-blue-400'
+                              : 'bg-emerald-500 text-white hover:bg-emerald-600 hover:scale-[1.02] active:scale-[0.98] border-emerald-400',
                       )}
                     >
                       {isDeploying ? (
                         <div className="i-svg-spinners:90-ring-with-bg w-4 h-4" />
                       ) : deployedUrl ? (
                         <div className="i-ph:arrow-square-out-bold w-4 h-4" />
+                      ) : buildFailed ? (
+                        <div className="i-ph:x w-4 h-4" />
                       ) : (
                         <div className="i-ph:cloud-arrow-up-bold w-4 h-4" />
                       )}
-                      <span>{isDeploying ? 'Deploying...' : deployedUrl ? 'Visit Site' : 'Yes, deploy'}</span>
+                      <span>
+                        {isDeploying
+                          ? 'Deploying...'
+                          : deployedUrl
+                            ? 'Visit Site'
+                            : buildFailed
+                              ? 'Build Failed'
+                              : 'Yes, deploy'}
+                      </span>
                     </button>
                   </div>
                 ) : null}
